@@ -60,11 +60,11 @@ export const CandidateForm: React.FC<CandidateFormProps> = ({ onSubmit }) => {
            </div>
            
            <h1 className="text-3xl md:text-4xl lg:text-6xl font-bold tracking-tight leading-tight">
-             Meet <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Evalya</span>.
+             Meet <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Interna</span>.
            </h1>
            
            <p className="text-xl md:text-2xl lg:text-3xl font-light text-slate-200 leading-tight">
-             Your impartial, AI-driven technical interviewer.
+             Interna from InternAdda.
            </p>
            
            <p className="text-sm lg:text-lg text-slate-400 max-w-md leading-relaxed hidden md:block">
@@ -79,7 +79,7 @@ export const CandidateForm: React.FC<CandidateFormProps> = ({ onSubmit }) => {
             <div className="max-w-xl w-full mx-auto">
             <div className="mb-8 lg:mb-10">
                 <h2 className="text-xl lg:text-2xl font-bold text-slate-900">Candidate Profile</h2>
-                <p className="text-sm lg:text-base text-slate-500 mt-2">Configure Evalya with the interview context.</p>
+                <p className="text-sm lg:text-base text-slate-500 mt-2">Configure Interna with the interview context.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6 lg:space-y-8">
@@ -161,7 +161,7 @@ export const CandidateForm: React.FC<CandidateFormProps> = ({ onSubmit }) => {
                     type="submit"
                     className="group w-full bg-slate-900 text-white py-4 lg:py-5 rounded-xl font-bold hover:bg-indigo-600 transition-all duration-300 shadow-xl hover:shadow-indigo-200 hover:-translate-y-1 flex items-center justify-between px-6 lg:px-8"
                 >
-                    <span>Initialize Evalya</span>
+                    <span>Initialize Interna</span>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 group-hover:translate-x-1 transition-transform">
                     <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
                     </svg>
