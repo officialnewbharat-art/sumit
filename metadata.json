@@ -1,0 +1,8 @@
+{
+  "name": "EvalyaAi",
+  "description": "A real-time AI voice interviewer that conducts technical interviews, transcribes the conversation, and evaluates candidates automatically.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
