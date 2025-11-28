@@ -11,30 +11,46 @@ const App: React.FC = () => {
   const [candidate, setCandidate] = useState<CandidateInfo | null>(null);
   const [result, setResult] = useState<InterviewResult | null>(null);
 
-  // --- AUTOMATIC LOGIN LOGIC START ---
+  // --- AUTOMATIC LOGIN LOGIC ---
   useEffect(() => {
-    // 1. URL se parameters read karo
     const params = new URLSearchParams(window.location.search);
     const nameParam = params.get('name');
-    const roleParam = params.get('role'); // Pichle code me humne 'role' key use ki thi
+    const roleParam = params.get('role');
 
-    // 2. Agar name aur role maujood hain, to state set karke seedha Instructions pe bhejo
     if (nameParam && roleParam) {
       console.log("Auto-login detected:", nameParam, roleParam);
       
       setCandidate({
         name: nameParam,
         field: roleParam,
-        // Default Job Description since we don't have it in URL
         jobDescription: `Technical interview for the role of ${roleParam}. Assess core competencies, problem solving skills and technical knowledge relevant to ${roleParam}.`,
         language: "English"
       });
 
-      // Form skip karke seedha Instructions step par
       setStep(AppStep.INSTRUCTIONS);
     }
   }, []);
-  // --- AUTOMATIC LOGIN LOGIC END ---
+
+  // --- STRICT BACK BUTTON PROTECTION (New Logic) ---
+  useEffect(() => {
+    // 1. पेज लोड होते ही करंट स्टेट को हिस्ट्री में push करें ताकि एक एंट्री बन जाए
+    window.history.pushState(null, "", window.location.href);
+
+    const handlePopState = (event: PopStateEvent) => {
+      // 2. जैसे ही यूजर Back बटन दबाएगा, यह इवेंट ट्रिगर होगा
+      // हम यूजर को वापस नहीं जाने देंगे, बल्कि InternAdda होमपेज पर भेज देंगे
+      window.location.replace("https://internadda.com/"); 
+    };
+
+    // 3. इवेंट लिसनर जोड़ें
+    window.addEventListener("popstate", handlePopState);
+
+    // 4. क्लीनअप (जब कंपोनेंट अनमाउंट हो)
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+  // --- END PROTECTION ---
 
   const handleFormSubmit = (info: CandidateInfo) => {
     setCandidate(info);
@@ -50,7 +66,6 @@ const App: React.FC = () => {
     
     // CHECK FOR DISQUALIFICATION FIRST
     if (terminationReason && terminationReason !== "Completed" && terminationReason !== "User Requested End") {
-        // Delay slightly to simulate processing
         setTimeout(() => {
             setResult({
                 rating: 0,
@@ -168,7 +183,6 @@ const App: React.FC = () => {
 
   const currentStepIndex = steps.findIndex(s => s.id === step);
   const showHeader = step !== AppStep.INTERVIEW;
-  // Determine text color based on background (Result screen has white bg sidebar, others have dark left panel)
   const isLightBackground = step === AppStep.RESULT;
 
   return (
@@ -181,7 +195,6 @@ const App: React.FC = () => {
             {/* Logo */}
             <div className="flex items-center gap-2 md:gap-3 pointer-events-auto">
                <div className="bg-indigo-600 text-white p-1.5 md:p-2 rounded-lg shadow-lg shadow-indigo-600/20 rotate-45 transform hover:rotate-12 transition-transform duration-500">
-                 {/* Evalya Bow & Arrow Logo */}
                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 md:w-5 md:h-5 -rotate-45">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 4.5L8.25 15.75" />
@@ -218,7 +231,7 @@ const App: React.FC = () => {
         </header>
       )}
 
-      {/* Main Content - Flexible Height */}
+      {/* Main Content */}
       <main className="flex-1 w-full relative overflow-hidden">
           {step === AppStep.FORM && (
             <CandidateForm onSubmit={handleFormSubmit} />
