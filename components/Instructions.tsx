@@ -13,25 +13,30 @@ export const Instructions: React.FC<InstructionsProps> = ({ onStart }) => {
   const [latencyMs, setLatencyMs] = useState<number>(0);
   const [noiseStatus, setNoiseStatus] = useState<NoiseStatus>('checking');
   
+  // Refs
+  const streamRef = useRef<MediaStream | null>(null); // NEW: To track and stop camera
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const animationRef = useRef<number>(0);
   const frameCountRef = useRef<number>(0);
+  const resizeHandlerRef = useRef<(() => void) | null>(null); // NEW: To clean up event listener
 
   useEffect(() => {
     const initMedia = async () => {
       try {
+        // 1. Get User Media
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        streamRef.current = stream; // Save stream for cleanup
         setPermissionGranted(true);
         
-        // Video Setup
+        // 2. Video Setup
         if (videoRef.current) {
             videoRef.current.srcObject = stream;
         }
 
-        // Audio Setup
+        // 3. Audio Setup
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
         const audioContext = new AudioContextClass();
         const analyser = audioContext.createAnalyser();
@@ -39,10 +44,12 @@ export const Instructions: React.FC<InstructionsProps> = ({ onStart }) => {
         
         analyser.fftSize = 512;
         microphone.connect(analyser);
+        // Note: Do NOT connect to destination (speakers) to avoid feedback loop
         
         audioContextRef.current = audioContext;
         analyserRef.current = analyser;
         
+        // 4. Start Visualizer
         drawVisualizer();
       } catch (err) {
         console.error("Media error", err);
@@ -78,11 +85,27 @@ export const Instructions: React.FC<InstructionsProps> = ({ onStart }) => {
     // Re-check network every 5 seconds
     const netInterval = setInterval(checkNetworkSpeed, 5000);
 
+    // CLEANUP FUNCTION
     return () => {
       clearInterval(netInterval);
+      
+      // Stop Animation Loop
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      
+      // Remove Resize Listener
+      if (resizeHandlerRef.current) {
+          window.removeEventListener('resize', resizeHandlerRef.current);
+      }
+
+      // Close Audio Context
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         audioContextRef.current.close();
+      }
+
+      // STOP CAMERA & MIC (Critical Fix)
+      if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
       }
     };
   }, []);
@@ -95,12 +118,16 @@ export const Instructions: React.FC<InstructionsProps> = ({ onStart }) => {
       const ctx = canvas.getContext('2d');
       if(!ctx) return;
 
+      // Define Resize Logic
       const resize = () => {
          if (!canvas.parentElement) return;
          canvas.width = canvas.parentElement.offsetWidth * window.devicePixelRatio;
          canvas.height = canvas.parentElement.offsetHeight * window.devicePixelRatio;
          ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
       };
+      
+      // Store reference for cleanup
+      resizeHandlerRef.current = resize;
       window.addEventListener('resize', resize);
       resize();
 
@@ -132,7 +159,13 @@ export const Instructions: React.FC<InstructionsProps> = ({ onStart }) => {
 
               ctx.fillStyle = gradient;
               ctx.beginPath();
-              ctx.roundRect(x, height - barHeight, barWidth, barHeight, 4);
+              
+              // Fallback for browsers that don't support roundRect
+              if (ctx.roundRect) {
+                  ctx.roundRect(x, height - barHeight, barWidth, barHeight, 4);
+              } else {
+                  ctx.rect(x, height - barHeight, barWidth, barHeight);
+              }
               ctx.fill();
 
               x += barWidth + 1;
@@ -145,9 +178,6 @@ export const Instructions: React.FC<InstructionsProps> = ({ onStart }) => {
               const averageVolume = sum / bufferLength;
               
               // Thresholds (0-255 scale)
-              // < 10: Quiet room
-              // 10-30: Acceptable background noise (AC, distant sounds)
-              // > 30: Too loud
               if (averageVolume < 10) {
                   setNoiseStatus('good');
               } else if (averageVolume < 30) {
