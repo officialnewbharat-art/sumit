@@ -181,7 +181,7 @@ const App: React.FC = () => {
             {/* Logo */}
             <div className="flex items-center gap-3 pointer-events-auto">
                {/* UPDATED: Image Logo */}
-               <img src="/interna.png" alt="Interna Logo" className="h-8 md:h-10 w-auto object-contain" />
+               <img src="interna.png" alt="Interna Logo" className="h-8 md:h-10 w-auto object-contain" />
                
                <h1 className={`text-lg md:text-xl font-bold tracking-tight ${isLightBackground ? 'text-slate-900' : 'text-white'}`}>
                  Interna<span className={isLightBackground ? 'text-indigo-600' : 'text-indigo-400'}>.ai</span>
