@@ -24,7 +24,7 @@ const App: React.FC = () => {
     setStep(AppStep.EVALUATING);
     
     // CHECK FOR DISQUALIFICATION FIRST
-    if (terminationReason && terminationReason !== "Completed") {
+    if (terminationReason && terminationReason !== "Completed" && terminationReason !== "User Requested End") {
         // Delay slightly to simulate processing
         setTimeout(() => {
             setResult({
@@ -164,7 +164,7 @@ const App: React.FC = () => {
                  </svg>
                </div>
                <h1 className={`text-lg md:text-xl font-bold tracking-tight ${isLightBackground ? 'text-slate-900' : 'text-white'}`}>
-                 Evalya<span className={isLightBackground ? 'text-indigo-600' : 'text-indigo-400'}>.ai</span>
+                 Interna<span className={isLightBackground ? 'text-indigo-600' : 'text-indigo-400'}>.ai</span>
                </h1>
             </div>
 
@@ -223,7 +223,7 @@ const App: React.FC = () => {
                       <div className="absolute inset-0 border-t-4 border-indigo-500 rounded-full animate-spin"></div>
                       <div className="absolute inset-2 border-t-4 border-purple-500 rounded-full animate-spin animation-delay-2000"></div>
                    </div>
-                   <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">Evalya is Analyzing</h2>
+                   <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">Interna is Analyzing</h2>
                    <p className="text-indigo-200 text-base md:text-lg max-w-md mx-auto">
                      Comparing transcript against {candidate?.field} competency models...
                    </p>
