@@ -163,11 +163,11 @@ export const Instructions: React.FC<InstructionsProps> = ({ onStart }) => {
   const getNetworkUI = () => {
       switch (networkQuality) {
           case 'excellent':
-              return { color: 'text-emerald-400', bg: 'bg-emerald-500/20', border: 'border-emerald-500/30', label: 'Net: Optimal', desc: 'Evalya will respond instantly.' };
+              return { color: 'text-emerald-400', bg: 'bg-emerald-500/20', border: 'border-emerald-500/30', label: 'Net: Optimal', desc: 'Interna will respond instantly.' };
           case 'fair':
               return { color: 'text-amber-400', bg: 'bg-amber-500/20', border: 'border-amber-500/30', label: 'Net: Stable', desc: 'Slight delays possible.' };
           case 'poor':
-              return { color: 'text-rose-400', bg: 'bg-rose-500/20', border: 'border-rose-500/30', label: 'Net: Weak', desc: 'Connection slow. Evalya may lag.' };
+              return { color: 'text-rose-400', bg: 'bg-rose-500/20', border: 'border-rose-500/30', label: 'Net: Weak', desc: 'Connection slow. Interna may lag.' };
           default:
               return { color: 'text-slate-400', bg: 'bg-slate-500/20', border: 'border-slate-500/30', label: 'Net: ...', desc: 'Testing connectivity...' };
       }
