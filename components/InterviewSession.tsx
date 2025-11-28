@@ -130,6 +130,11 @@ export const InterviewSession: React.FC<InterviewSessionProps> = ({ candidate, o
       }, 2000);
   };
 
+  // Manual End Handler
+  const handleManualEnd = () => {
+      handleTermination("User Requested End");
+  };
+
   // TIMER LOGIC
   useEffect(() => {
     if (status === 'connected') {
@@ -540,7 +545,7 @@ export const InterviewSession: React.FC<InterviewSessionProps> = ({ candidate, o
             tools: [{ functionDeclarations: [endInterviewTool] }],
             systemInstruction: {
               parts: [{
-                text: `You are Evalya, an expert AI technical interviewer.
+                text: `You are Interna, an expert AI technical interviewer from InternAdda.
                        Candidate Name: ${candidate.name}
                        Role: ${candidate.field}
                        Context: ${candidate.jobDescription.substring(0, 1000)}
@@ -549,7 +554,7 @@ export const InterviewSession: React.FC<InterviewSessionProps> = ({ candidate, o
                        CORE OBJECTIVE: Assess technical depth, problem-solving skills, and communication.
 
                        PROTOCOL:
-                       1. **Introduction**: Briefly introduce yourself as Evalya and the role.
+                       1. **Introduction**: Briefly introduce yourself as "Interna from InternAdda" and the role.
                        2. **The Interview Loop** (Execute exactly 5 times):
                           - Ask a technical question based on the Role/Context.
                           - **Listen Intelligently**:
@@ -743,7 +748,7 @@ export const InterviewSession: React.FC<InterviewSessionProps> = ({ candidate, o
              
              {/* Status Text */}
              <div className="mt-8 text-center min-h-[24px]">
-                 {status === 'connecting' && <p className="text-indigo-300 animate-pulse">Connecting to Evalya...</p>}
+                 {status === 'connecting' && <p className="text-indigo-300 animate-pulse">Connecting to Interna...</p>}
                  {status === 'error' && <p className="text-rose-400 font-bold">Connection Failed</p>}
                  {systemMessageStatus ? (
                      <p className="text-amber-400 text-sm font-bold animate-bounce">{systemMessageStatus}</p>
@@ -775,6 +780,17 @@ export const InterviewSession: React.FC<InterviewSessionProps> = ({ candidate, o
                    <path d="M6 10.5a.75.75 0 01.75.75v1.5a5.25 5.25 0 1010.5 0v-1.5a.75.75 0 011.5 0v1.5a6.751 6.751 0 01-6 6.709v2.291h3a.75.75 0 010 1.5h-7.5a.75.75 0 010-1.5h7.5z" />
                  </svg>
                )}
+            </button>
+
+            {/* End Interview Button */}
+            <button 
+              onClick={handleManualEnd}
+              className="p-4 rounded-full bg-rose-500/20 text-rose-500 hover:bg-rose-500/30 transition-all duration-300 transform active:scale-95"
+              title="End Interview"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                <path fillRule="evenodd" d="M4.5 7.5a3 3 0 013-3h9a3 3 0 013 3v9a3 3 0 01-3 3h-9a3 3 0 01-3-3v-9z" clipRule="evenodd" />
+              </svg>
             </button>
 
             {/* Transcript Toggle */}
