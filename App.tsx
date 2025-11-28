@@ -179,15 +179,10 @@ const App: React.FC = () => {
         <header className="absolute top-0 left-0 w-full z-50 px-4 py-3 md:px-6 md:py-4 pointer-events-none">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             {/* Logo */}
-            <div className="flex items-center gap-2 md:gap-3 pointer-events-auto">
-               <div className="bg-indigo-600 text-white p-1.5 md:p-2 rounded-lg shadow-lg shadow-indigo-600/20 rotate-45 transform hover:rotate-12 transition-transform duration-500">
-                 {/* Evalya Bow & Arrow Logo */}
-                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 md:w-5 md:h-5 -rotate-45">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 4.5L8.25 15.75" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12c0-4.142 3.358-7.5 7.5-7.5" />
-                 </svg>
-               </div>
+            <div className="flex items-center gap-3 pointer-events-auto">
+               {/* UPDATED: Image Logo */}
+               <img src="/interna.png" alt="Interna Logo" className="h-8 md:h-10 w-auto object-contain" />
+               
                <h1 className={`text-lg md:text-xl font-bold tracking-tight ${isLightBackground ? 'text-slate-900' : 'text-white'}`}>
                  Interna<span className={isLightBackground ? 'text-indigo-600' : 'text-indigo-400'}>.ai</span>
                </h1>
