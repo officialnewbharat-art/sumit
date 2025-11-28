@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { AppStep, CandidateInfo, InterviewResult } from './types';
 import { CandidateForm } from './components/CandidateForm';
@@ -10,6 +10,31 @@ const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(AppStep.FORM);
   const [candidate, setCandidate] = useState<CandidateInfo | null>(null);
   const [result, setResult] = useState<InterviewResult | null>(null);
+
+  // --- AUTOMATIC LOGIN LOGIC START ---
+  useEffect(() => {
+    // 1. URL se parameters read karo
+    const params = new URLSearchParams(window.location.search);
+    const nameParam = params.get('name');
+    const roleParam = params.get('role'); // Pichle code me humne 'role' key use ki thi
+
+    // 2. Agar name aur role maujood hain, to state set karke seedha Instructions pe bhejo
+    if (nameParam && roleParam) {
+      console.log("Auto-login detected:", nameParam, roleParam);
+      
+      setCandidate({
+        name: nameParam,
+        field: roleParam,
+        // Default Job Description since we don't have it in URL
+        jobDescription: `Technical interview for the role of ${roleParam}. Assess core competencies, problem solving skills and technical knowledge relevant to ${roleParam}.`,
+        language: "English"
+      });
+
+      // Form skip karke seedha Instructions step par
+      setStep(AppStep.INSTRUCTIONS);
+    }
+  }, []);
+  // --- AUTOMATIC LOGIN LOGIC END ---
 
   const handleFormSubmit = (info: CandidateInfo) => {
     setCandidate(info);
