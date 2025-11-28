@@ -20,10 +20,8 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({ result, candidateNam
        <div className="lg:col-span-4 bg-white border-b lg:border-b-0 lg:border-r border-slate-200 shrink-0 z-10 pt-14 lg:pt-0">
           
           {/* --- MOBILE COMPACT VIEW --- */}
-          {/* This section only shows on mobile to save vertical space */}
           <div className="lg:hidden px-4 py-3 flex items-center justify-between bg-white/50 backdrop-blur-sm">
               <div className="flex items-center gap-4">
-                  {/* Small Circular Score Badge */}
                   {!isDisqualified && (
                     <div className="relative w-12 h-12 shrink-0">
                         <svg className="w-full h-full transform -rotate-90">
@@ -42,7 +40,6 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({ result, candidateNam
                     </div>
                   )}
                   
-                  {/* Name & Status */}
                   <div>
                       <h1 className="text-base font-bold text-slate-900 leading-tight truncate max-w-[180px]">{candidateName}</h1>
                       {isDisqualified ? (
@@ -55,7 +52,6 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({ result, candidateNam
                   </div>
               </div>
 
-              {/* Mobile Reset Button */}
               <button 
                 onClick={onReset} 
                 className="p-2 bg-slate-100 rounded-lg text-slate-600 hover:bg-slate-200 active:scale-95 transition-transform"
@@ -110,6 +106,12 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({ result, candidateNam
                 )}
             </div>
 
+            {/* BRANDING FOOTER IN SIDEBAR */}
+            <div className="mt-auto px-10 pb-4 text-center">
+                 <p className="text-xs text-slate-400 font-medium">Powered by InternAdda</p>
+                 <p className="text-[10px] text-slate-300">A co-brand of InternAdda</p>
+            </div>
+
             {/* Action Footer */}
             <div className="hidden lg:block p-8 border-t border-slate-100 bg-slate-50/50">
                 <button
@@ -128,7 +130,6 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({ result, candidateNam
        {/* MAIN CONTENT: Tabs & Detailed Feedback */}
        <div className="lg:col-span-8 bg-slate-50 flex flex-col flex-1 overflow-hidden lg:pt-24">
           
-          {/* Tab Header (Hidden if disqualified) */}
           {!isDisqualified && (
             <div className="bg-white border-b border-slate-200 px-4 lg:px-12 pt-2 lg:pt-6 shrink-0">
                 <div className="flex gap-6 lg:gap-8">
@@ -177,6 +178,18 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({ result, candidateNam
                     {/* Overview Tab Content */}
                     {activeTab === 'overview' && (
                     <div className="space-y-6 lg:space-y-12">
+                        
+                        {/* --- NEW SUCCESS BANNER --- */}
+                        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 text-center shadow-sm">
+                            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-bold text-emerald-900">Interview Successfully Completed</h3>
+                            <p className="text-emerald-700 text-sm mt-1">Thank you for your time and effort in completing the assessment.</p>
+                        </div>
+
                         {/* Executive Summary */}
                         <div>
                             <h3 className="text-sm lg:text-lg font-bold text-slate-900 mb-3 lg:mb-6 flex items-center gap-2">
@@ -216,6 +229,38 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({ result, candidateNam
                                 </div>
                             </div>
                         </div>
+
+                        {/* --- NEW NEXT STEPS SECTION --- */}
+                        <div className="bg-slate-900 rounded-2xl p-8 text-center text-white relative overflow-hidden shadow-xl">
+                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-indigo-500/30 via-slate-900 to-slate-900"></div>
+                             <div className="relative z-10">
+                                 {result.passed ? (
+                                     <>
+                                        <h3 className="text-xl font-bold mb-3">Congratulations!</h3>
+                                        <p className="text-slate-300 mb-6 max-w-lg mx-auto">You have cleared this round. To complete the internship process, please mail your resume to the following address:</p>
+                                        <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-xl px-6 py-4 backdrop-blur-sm">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-indigo-400">
+                                              <path d="M3 4a2 2 0 00-2 2v1.161l8.441 4.221a1.25 1.25 0 001.118 0L19 7.162V6a2 2 0 00-2-2H3z" />
+                                              <path d="M19 8.839l-7.77 3.885a2.75 2.75 0 01-2.46 0L1 8.839V14a2 2 0 002 2h14a2 2 0 002-2V8.839z" />
+                                            </svg>
+                                            <a href="mailto:hr@internadda.com" className="text-lg font-bold text-white hover:text-indigo-300 transition-colors">
+                                                hr@internadda.com
+                                            </a>
+                                        </div>
+                                     </>
+                                 ) : (
+                                     <>
+                                        <h3 className="text-xl font-bold mb-2">Keep Growing</h3>
+                                        <p className="text-slate-300 italic mb-4">"Success is not final, failure is not fatal: it is the courage to continue that counts."</p>
+                                        <p className="text-slate-400 text-sm">Please practice your core concepts and try again. You are valuable to us, and we'd love to see you improve.</p>
+                                        <button onClick={onReset} className="mt-4 px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold transition-colors text-sm">
+                                            Practice & Retry
+                                        </button>
+                                     </>
+                                 )}
+                             </div>
+                        </div>
+
                     </div>
                     )}
 
