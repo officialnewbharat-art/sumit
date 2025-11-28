@@ -11,8 +11,16 @@ const App: React.FC = () => {
   const [candidate, setCandidate] = useState<CandidateInfo | null>(null);
   const [result, setResult] = useState<InterviewResult | null>(null);
 
-  // --- AUTOMATIC LOGIN LOGIC ---
+  // --- 1. AUTOMATIC LOGIN & URL CLEANING LOGIC (UPDATED) ---
   useEffect(() => {
+    // सबसे पहले चेक करो कि बंदा Forward/Back बटन से तो नहीं आया?
+    const navEntry = window.performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming;
+    if (navEntry && navEntry.type === 'back_forward') {
+       // अगर Forward बटन दबा के आया है, तो वापस होम पेज भेज दो
+       window.location.replace("https://internadda.com/");
+       return; 
+    }
+
     const params = new URLSearchParams(window.location.search);
     const nameParam = params.get('name');
     const roleParam = params.get('role');
@@ -28,24 +36,27 @@ const App: React.FC = () => {
       });
 
       setStep(AppStep.INSTRUCTIONS);
+
+      // --- CHANGE HERE: URL SAAF KARO (Clean the URL) ---
+      // इससे क्या होगा कि URL बार से ?name=... हट जाएगा।
+      // तो अगर वो फॉरवर्ड भी करेगा तो ये दोबारा नहीं चलेगा।
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
-  // --- STRICT BACK BUTTON PROTECTION (New Logic) ---
+  // --- 2. STRICT BACK BUTTON PROTECTION (UPDATED) ---
   useEffect(() => {
-    // 1. पेज लोड होते ही करंट स्टेट को हिस्ट्री में push करें ताकि एक एंट्री बन जाए
+    // पेज लोड होते ही करंट स्टेट को हिस्ट्री में push करें
     window.history.pushState(null, "", window.location.href);
 
     const handlePopState = (event: PopStateEvent) => {
-      // 2. जैसे ही यूजर Back बटन दबाएगा, यह इवेंट ट्रिगर होगा
-      // हम यूजर को वापस नहीं जाने देंगे, बल्कि InternAdda होमपेज पर भेज देंगे
+      // जैसे ही यूजर Back बटन दबाएगा...
+      // हम उसे इंटरनेट अड्डा के होम पेज पर भेज देंगे
       window.location.replace("https://internadda.com/"); 
     };
 
-    // 3. इवेंट लिसनर जोड़ें
     window.addEventListener("popstate", handlePopState);
 
-    // 4. क्लीनअप (जब कंपोनेंट अनमाउंट हो)
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
@@ -64,7 +75,6 @@ const App: React.FC = () => {
   const handleInterviewComplete = async (transcript: string, terminationReason?: string) => {
     setStep(AppStep.EVALUATING);
     
-    // CHECK FOR DISQUALIFICATION FIRST
     if (terminationReason && terminationReason !== "Completed" && terminationReason !== "User Requested End") {
         setTimeout(() => {
             setResult({
@@ -80,7 +90,8 @@ const App: React.FC = () => {
     }
     
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.REACT_APP_GEMINI_API_KEY || '' });
+      // Note: Make sure usage of process.env is correct for your build tool (Vite uses import.meta.env)
       
       const prompt = `
         Evaluate this job interview transcript.
@@ -217,11 +228,11 @@ const App: React.FC = () => {
                       isActive ? 'bg-slate-900 text-white' : 
                       isCompleted ? 'text-emerald-600' : 'text-slate-400'
                     }`}>
-                       <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-white animate-pulse' : isCompleted ? 'bg-emerald-500' : 'bg-slate-300'}`}></span>
-                       <span className="text-xs font-bold uppercase tracking-wide">{s.label}</span>
+                        <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-white animate-pulse' : isCompleted ? 'bg-emerald-500' : 'bg-slate-300'}`}></span>
+                        <span className="text-xs font-bold uppercase tracking-wide">{s.label}</span>
                     </div>
                     {idx < steps.length - 1 && (
-                       <div className="w-4 h-px bg-slate-200 mx-1"></div>
+                        <div className="w-4 h-px bg-slate-200 mx-1"></div>
                     )}
                   </div>
                 );
