@@ -17,16 +17,14 @@ const App: React.FC = () => {
        window.location.replace("https://internadda.com/");
        return; 
     }
-
     const params = new URLSearchParams(window.location.search);
     const nameParam = params.get('name');
     const roleParam = params.get('role');
-
     if (nameParam && roleParam) {
       setCandidate({
         name: nameParam,
         field: roleParam,
-        jobDescription: `Technical interview for the role of ${roleParam}. Assess core competencies, problem solving skills and technical knowledge relevant to ${roleParam}.`,
+        jobDescription: `Technical interview for ${roleParam}.`,
         language: "English"
       });
       setStep(AppStep.INSTRUCTIONS);
@@ -34,96 +32,50 @@ const App: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => {
-    window.history.pushState(null, "", window.location.href);
-    const handlePopState = () => {
-      window.location.replace("https://internadda.com/"); 
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
-
-  const handleFormSubmit = (info: CandidateInfo) => {
-    setCandidate(info);
-    setStep(AppStep.INSTRUCTIONS);
-  };
-
-  const startInterview = () => {
-    setStep(AppStep.INTERVIEW);
-  };
-
   const handleInterviewComplete = async (transcript: string, terminationReason?: string) => {
     setStep(AppStep.EVALUATING);
     
-    // FIX: Only force 0 score for actual security violations.
-    // "Completed", "Time Limit", or "User Requested" should proceed to evaluation.
-    if (terminationReason && terminationReason.includes("Security Violation")) {
-        setTimeout(() => {
-            setResult({
-                rating: 0,
-                feedback: "Interview terminated due to security violation.",
-                passed: false,
-                questions: [],
-                terminationReason: terminationReason
-            });
-            setStep(AppStep.RESULT);
-        }, 1500);
+    // Only fail automatically for security violations
+    if (terminationReason && terminationReason.includes("Violation")) {
+        setResult({
+            rating: 0,
+            feedback: "Interview terminated due to security violation.",
+            passed: false,
+            questions: [],
+            terminationReason: terminationReason
+        });
+        setStep(AppStep.RESULT);
         return;
     }
     
     try {
-      // FIX: Use import.meta.env for Vite projects
+      // FIX: Use import.meta.env for Vite
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-      const ai = new GoogleGenAI(apiKey);
-      const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const genAI = new GoogleGenAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
       const prompt = `
-        Evaluate this job interview transcript.
+        Evaluate this interview transcript.
         Candidate: ${candidate?.name}
         Role: ${candidate?.field}
-        Job Description: ${candidate?.jobDescription}
-        
-        TRANSCRIPT:
-        ${transcript}
+        Transcript: ${transcript}
         
         Task:
-        1. Analyze technical accuracy and communication.
-        2. Rate overall (1-10).
-        3. Provide overall feedback (max 3 sentences).
-        4. Identify EVERY technical question asked. For each, provide:
-           - "question": (string)
-           - "candidateAnswerSummary": (string)
-           - "rating": (integer 1-10)
-           - "feedback": (string explaining why this rating was given)
+        1. Rate the candidate 1-10.
+        2. Provide feedback (max 3 sentences).
+        3. Identify EVERY technical question. For each:
+           - "question": string
+           - "candidateAnswerSummary": string
+           - "rating": integer 1-10
+           - "feedback": string
         
-        Output ONLY pure valid JSON.
+        Output ONLY valid JSON.
       `;
 
       const response = await model.generateContent({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    rating: { type: Type.INTEGER },
-                    feedback: { type: Type.STRING },
-                    questions: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                question: { type: Type.STRING },
-                                candidateAnswerSummary: { type: Type.STRING },
-                                rating: { type: Type.INTEGER },
-                                feedback: { type: Type.STRING }
-                            },
-                            required: ["question", "candidateAnswerSummary", "rating", "feedback"]
-                        }
-                    }
-                },
-                required: ["rating", "feedback", "questions"]
-            }
+        generationConfig: { 
+            responseMimeType: "application/json" 
         }
       });
 
@@ -131,19 +83,18 @@ const App: React.FC = () => {
       
       setResult({
         rating: data.rating || 0,
-        feedback: data.feedback || "Evaluation completed successfully.",
+        feedback: data.feedback || "Evaluation complete.",
         passed: (data.rating || 0) >= 6,
         questions: data.questions || [],
         terminationReason: terminationReason
       });
-
       setStep(AppStep.RESULT);
 
     } catch (error) {
-      console.error("Evaluation failed", error);
+      console.error("Evaluation Error:", error);
       setResult({
         rating: 0,
-        feedback: "The AI failed to evaluate the transcript. This usually happens if the transcript is too short or empty.",
+        feedback: "The AI could not process the transcript. Ensure you completed the interview.",
         passed: false,
         questions: []
       });
@@ -151,72 +102,21 @@ const App: React.FC = () => {
     }
   };
 
-  const resetApp = () => {
-    setCandidate(null);
-    setResult(null);
-    setStep(AppStep.FORM);
-  };
-
-  const steps = [
-    { id: AppStep.FORM, label: 'Profile' },
-    { id: AppStep.INSTRUCTIONS, label: 'Check' },
-    { id: AppStep.INTERVIEW, label: 'Live' },
-    { id: AppStep.EVALUATING, label: 'Review' },
-    { id: AppStep.RESULT, label: 'Result' },
-  ];
-
-  const currentStepIndex = steps.findIndex(s => s.id === step);
-  const showHeader = step !== AppStep.INTERVIEW;
-  const isLightBackground = step === AppStep.RESULT;
-
   return (
-    <div className="h-[100dvh] w-screen overflow-hidden font-sans text-slate-900 bg-slate-50 flex flex-col relative">
-      {showHeader && (
-        <header className="absolute top-0 left-0 w-full z-50 px-4 py-3 md:px-6 md:py-4 pointer-events-none">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2 md:gap-3 pointer-events-auto">
-               <div className="bg-indigo-600 text-white p-1.5 md:p-2 rounded-lg shadow-lg rotate-45 transform">
-                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 md:w-5 md:h-5 -rotate-45">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
-                 </svg>
-               </div>
-               <h1 className={`text-lg md:text-xl font-bold ${isLightBackground ? 'text-slate-900' : 'text-white'}`}>
-                 Interna<span className="text-indigo-400">.ai</span>
-               </h1>
-            </div>
-            <div className="hidden md:flex items-center gap-2 bg-white/80 backdrop-blur-md px-4 py-2 rounded-full border border-slate-200 pointer-events-auto">
-              {steps.map((s, idx) => (
-                <div key={s.id} className="flex items-center">
-                  <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${idx === currentStepIndex ? 'bg-slate-900 text-white' : idx < currentStepIndex ? 'text-emerald-600' : 'text-slate-400'}`}>
-                      <span className="text-xs font-bold uppercase">{s.label}</span>
-                  </div>
-                  {idx < steps.length - 1 && <div className="w-4 h-px bg-slate-200 mx-1"></div>}
-                </div>
-              ))}
-            </div>
-          </div>
-        </header>
-      )}
-
-      <main className="flex-1 w-full relative overflow-hidden">
-          {step === AppStep.FORM && <CandidateForm onSubmit={handleFormSubmit} />}
-          {step === AppStep.INSTRUCTIONS && <Instructions onStart={startInterview} />}
-          {step === AppStep.INTERVIEW && candidate && (
-            <InterviewSession candidate={candidate} onComplete={handleInterviewComplete} />
-          )}
+    <div className="h-[100dvh] w-screen bg-slate-50 flex flex-col overflow-hidden">
+      <main className="flex-1 relative">
+          {step === AppStep.FORM && <CandidateForm onSubmit={(info) => { setCandidate(info); setStep(AppStep.INSTRUCTIONS); }} />}
+          {step === AppStep.INSTRUCTIONS && <Instructions onStart={() => setStep(AppStep.INTERVIEW)} />}
+          {step === AppStep.INTERVIEW && candidate && <InterviewSession candidate={candidate} onComplete={handleInterviewComplete} />}
           {step === AppStep.EVALUATING && (
-             <div className="h-full w-full flex flex-col items-center justify-center bg-slate-900 text-center px-6">
-                <div className="w-20 h-20 border-t-4 border-indigo-500 rounded-full animate-spin mb-8"></div>
-                <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">Interna is Analyzing</h2>
-                <p className="text-indigo-200">Evaluating your technical responses...</p>
+             <div className="h-full w-full flex flex-col items-center justify-center bg-slate-900 text-white">
+                <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <h2 className="text-xl font-bold">Analyzing Your Interview...</h2>
              </div>
           )}
-          {step === AppStep.RESULT && result && candidate && (
-            <ResultScreen result={result} candidateName={candidate.name} onReset={resetApp} />
-          )}
+          {step === AppStep.RESULT && result && candidate && <ResultScreen result={result} candidateName={candidate.name} onReset={() => setStep(AppStep.FORM)} />}
       </main>
     </div>
   );
 };
-
 export default App;
