@@ -17,14 +17,16 @@ const App: React.FC = () => {
        window.location.replace("https://internadda.com/");
        return; 
     }
+
     const params = new URLSearchParams(window.location.search);
     const nameParam = params.get('name');
     const roleParam = params.get('role');
+
     if (nameParam && roleParam) {
       setCandidate({
         name: nameParam,
         field: roleParam,
-        jobDescription: `Technical interview for ${roleParam}.`,
+        jobDescription: `Technical interview for ${roleParam}. Assess core competencies and problem solving.`,
         language: "English"
       });
       setStep(AppStep.INSTRUCTIONS);
@@ -32,10 +34,29 @@ const App: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => {
+    window.history.pushState(null, "", window.location.href);
+    const handlePopState = () => {
+      window.location.replace("https://internadda.com/"); 
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const handleFormSubmit = (info: CandidateInfo) => {
+    setCandidate(info);
+    setStep(AppStep.INSTRUCTIONS);
+  };
+
+  const startInterview = () => {
+    setStep(AppStep.INTERVIEW);
+  };
+
   const handleInterviewComplete = async (transcript: string, terminationReason?: string) => {
     setStep(AppStep.EVALUATING);
     
-    // ONLY force 0 for actual security/cheating violations.
+    // Only force zero for actual security breaches. 
+    // If the user ends early or answers 1 question, we MUST evaluate honestly.
     if (terminationReason && terminationReason.includes("Security Violation")) {
         setResult({
             rating: 0,
@@ -49,10 +70,10 @@ const App: React.FC = () => {
     }
     
     try {
-      // FIX: Use Vite environment variable syntax
+      // FIX: Use import.meta.env for Vite projects
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-      const genAI = new GoogleGenAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const ai = new GoogleGenAI(apiKey);
+      const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
       
       const prompt = `
         Evaluate this job interview transcript accurately.
@@ -61,14 +82,14 @@ const App: React.FC = () => {
         Transcript: 
         ${transcript}
         
-        Evaluation Rules:
-        1. Identify every question the AI asked and the candidate's response.
-        2. If the candidate answered even ONE question, give an honest rating (1-10) for that answer.
-        3. DO NOT give a total score of 0 unless the candidate said absolutely nothing. 
-        4. Even for poor answers, give 1 or 2 marks for effort if they attempted to speak.
-        5. Provide a summary of each Q&A pair.
+        Evaluation Guidelines:
+        1. Identify every question asked by the interviewer.
+        2. If the candidate answered even ONE question, provide an honest rating (1-10) for that answer.
+        3. DO NOT give a total score of 0 if they attempted to answer. Give at least 1-2 marks for participation.
+        4. Be accurate and fair. If the answer was good, give a high score.
+        5. Provide a summary for each question asked.
 
-        Output ONLY valid JSON:
+        Output ONLY pure valid JSON:
         {
           "rating": number,
           "feedback": "string",
@@ -85,25 +106,28 @@ const App: React.FC = () => {
 
       const response = await model.generateContent({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
       });
 
       const data = JSON.parse(response.response.text());
       
       setResult({
-        rating: data.rating || 1, // Default to 1 instead of 0
-        feedback: data.feedback || "Evaluation complete.",
+        rating: data.rating || 1, // Default to 1 instead of 0 for participation
+        feedback: data.feedback || "Evaluation completed based on transcript.",
         passed: (data.rating || 0) >= 6,
         questions: data.questions || [],
         terminationReason: terminationReason
       });
+
       setStep(AppStep.RESULT);
 
     } catch (error) {
-      console.error("Evaluation failed:", error);
+      console.error("Evaluation failed", error);
       setResult({
-        rating: 1, // Fallback to 1 if the AI crashes
-        feedback: "The system had trouble analyzing the audio, but you have been awarded basic marks for participation.",
+        rating: 1,
+        feedback: "The AI had trouble processing the transcript, but marks have been awarded for your effort.",
         passed: false,
         questions: []
       });
@@ -111,21 +135,61 @@ const App: React.FC = () => {
     }
   };
 
+  const resetApp = () => {
+    setCandidate(null);
+    setResult(null);
+    setStep(AppStep.FORM);
+  };
+
+  const steps = [
+    { id: AppStep.FORM, label: 'Profile' },
+    { id: AppStep.INSTRUCTIONS, label: 'Check' },
+    { id: AppStep.INTERVIEW, label: 'Live' },
+    { id: AppStep.EVALUATING, label: 'Review' },
+    { id: AppStep.RESULT, label: 'Result' },
+  ];
+
+  const currentStepIndex = steps.findIndex(s => s.id === step);
+  const showHeader = step !== AppStep.INTERVIEW;
+
   return (
-    <div className="h-[100dvh] w-screen bg-slate-50 flex flex-col overflow-hidden">
-      <main className="flex-1 relative">
-          {step === AppStep.FORM && <CandidateForm onSubmit={(info) => { setCandidate(info); setStep(AppStep.INSTRUCTIONS); }} />}
-          {step === AppStep.INSTRUCTIONS && <Instructions onStart={() => setStep(AppStep.INTERVIEW)} />}
-          {step === AppStep.INTERVIEW && candidate && <InterviewSession candidate={candidate} onComplete={handleInterviewComplete} />}
+    <div className="h-[100dvh] w-screen overflow-hidden font-sans text-slate-900 bg-slate-50 flex flex-col relative">
+      {showHeader && (
+        <header className="absolute top-0 left-0 w-full z-50 px-4 py-3 md:px-6 md:py-4 pointer-events-none">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2 md:gap-3 pointer-events-auto">
+               <div className="bg-indigo-600 text-white p-1.5 md:p-2 rounded-lg shadow-lg rotate-45 transform">
+                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 md:w-5 md:h-5 -rotate-45">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
+                 </svg>
+               </div>
+               <h1 className="text-lg md:text-xl font-bold tracking-tight text-slate-900">
+                 Interna<span className="text-indigo-600">.ai</span>
+               </h1>
+            </div>
+          </div>
+        </header>
+      )}
+
+      <main className="flex-1 w-full relative overflow-hidden">
+          {step === AppStep.FORM && <CandidateForm onSubmit={handleFormSubmit} />}
+          {step === AppStep.INSTRUCTIONS && <Instructions onStart={startInterview} />}
+          {step === AppStep.INTERVIEW && candidate && (
+            <InterviewSession candidate={candidate} onComplete={handleInterviewComplete} />
+          )}
           {step === AppStep.EVALUATING && (
-             <div className="h-full w-full flex flex-col items-center justify-center bg-slate-900 text-white">
-                <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-                <h2 className="text-2xl font-bold">Analyzing Your Interview...</h2>
+             <div className="h-full w-full flex flex-col items-center justify-center bg-slate-900 text-white text-center px-6">
+                <div className="w-16 h-16 border-t-4 border-indigo-500 rounded-full animate-spin mb-6"></div>
+                <h2 className="text-2xl md:text-4xl font-bold mb-4">Interna is Analyzing</h2>
+                <p className="text-indigo-200">Generating your technical Q&A analysis...</p>
              </div>
           )}
-          {step === AppStep.RESULT && result && <ResultScreen result={result} candidateName={candidate?.name || ""} onReset={() => setStep(AppStep.FORM)} />}
+          {step === AppStep.RESULT && result && candidate && (
+            <ResultScreen result={result} candidateName={candidate.name} onReset={resetApp} />
+          )}
       </main>
     </div>
   );
 };
+
 export default App;
