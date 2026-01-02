@@ -8,7 +8,6 @@ interface InterviewSessionProps {
   onComplete: (transcript: string, terminationReason?: string, timeLeftAtEnd?: number) => void;
 }
 
-// Define the tool for ending the interview
 const endInterviewTool: FunctionDeclaration = {
   name: "endInterview",
   description: "Ends the interview session. Call this when exactly 8 to 9 questions are completed or the user requests to end.",
@@ -48,76 +47,45 @@ export const InterviewSession: React.FC<InterviewSessionProps> = ({ candidate, o
   const animationRef = useRef<number>(0);
   const terminationTriggeredRef = useRef<boolean>(false);
   const isConnectedRef = useRef<boolean>(false);
-  const isAiSpeakingRef = useRef<boolean>(false);
   
-  // Robot Mouth Ref
   const mouthRef = useRef<SVGEllipseElement>(null);
-  
   const fullTranscriptHistory = useRef<string[]>([]);
   const timeLeftRef = useRef<number>(600);
 
-  // Sync ref with state for the callback
   useEffect(() => {
     timeLeftRef.current = timeLeft;
   }, [timeLeft]);
 
   const disconnect = () => {
     isConnectedRef.current = false;
-
     if (scriptProcessorRef.current) {
         scriptProcessorRef.current.onaudioprocess = null;
         scriptProcessorRef.current.disconnect();
         scriptProcessorRef.current = null;
     }
-
     if (sessionRef.current) {
-      try { 
-          sessionRef.current.close(); 
-          sessionRef.current = null;
-      } catch (e) { 
-          console.warn("Error closing session", e); 
-      }
+      try { sessionRef.current.close(); sessionRef.current = null; } catch (e) {}
     }
-    
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
-    
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close();
-    }
-    
-    if (inputAudioContextRef.current && inputAudioContextRef.current.state !== 'closed') {
-      inputAudioContextRef.current.close();
-    }
-    
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-    }
-    
-    sourcesRef.current.forEach(source => {
-        try { source.stop(); } catch(e) {}
-    });
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') audioContextRef.current.close();
+    if (inputAudioContextRef.current && inputAudioContextRef.current.state !== 'closed') inputAudioContextRef.current.close();
+    if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    sourcesRef.current.forEach(source => { try { source.stop(); } catch(e) {} });
     sourcesRef.current.clear();
-    nextAudioStartTimeRef.current = 0;
   };
 
   const handleTermination = (reason: string) => {
       if (terminationTriggeredRef.current) return;
       terminationTriggeredRef.current = true;
-      
       setTimeout(() => {
           disconnect();
           onComplete(fullTranscriptHistory.current.join('\n'), reason, timeLeftRef.current);
       }, 2000);
   };
 
-  const handleManualEnd = () => {
-      handleTermination("User Requested End");
-  };
-
-  // TIMER LOGIC
   useEffect(() => {
     if (status === 'connected') {
         const timer = setInterval(() => {
@@ -134,7 +102,6 @@ export const InterviewSession: React.FC<InterviewSessionProps> = ({ candidate, o
     }
   }, [status]);
 
-  // --- VISUALIZER & ROBOT ANIMATION LOGIC ---
   const drawVisualizer = () => {
     const canvas = canvasRef.current;
     const analyser = analyserRef.current;
@@ -159,12 +126,10 @@ export const InterviewSession: React.FC<InterviewSessionProps> = ({ candidate, o
     const draw = () => {
       animationRef.current = requestAnimationFrame(draw);
       analyser.getByteFrequencyData(dataArray);
-      
       const width = canvas.width / dpr;
       const height = canvas.height / dpr;
       const centerY = height / 2;
       time += 0.05;
-      
       ctx.clearRect(0, 0, width, height);
       
       let sum = 0;
@@ -172,34 +137,24 @@ export const InterviewSession: React.FC<InterviewSessionProps> = ({ candidate, o
       const avg = sum / (bufferLength / 2);
       const volume = Math.min(1, avg / 50); 
 
-      // Robot Mouth sync
       if (mouthRef.current) {
           const baseRy = 2;
           const maxRy = 8;
-          const currentRy = baseRy + (volume * (maxRy - baseRy));
-          mouthRef.current.setAttribute('ry', currentRy.toFixed(2));
+          mouthRef.current.setAttribute('ry', (baseRy + (volume * (maxRy - baseRy))).toFixed(2));
       }
 
-      // Waveform visuals
-      const gradient = ctx.createLinearGradient(0, centerY - 50, 0, centerY + 50);
-      gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
-      gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.95)'); 
-      gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
       const waves = [
-        { freq: 0.01, speed: 0.2, amp: 4, alpha: 1.0, width: 2 },
-        { freq: 0.015, speed: 0.15, amp: 8, alpha: 0.4, width: 1 },
-        { freq: 0.008, speed: 0.1, amp: 12, alpha: 0.1, width: 1 }
+        { freq: 0.01, speed: 0.2, amp: 10, alpha: 0.8, color: '#6366f1' },
+        { freq: 0.015, speed: 0.15, amp: 15, alpha: 0.4, color: '#a5b4fc' },
+        { freq: 0.008, speed: 0.1, amp: 20, alpha: 0.2, color: '#312e81' }
       ];
-
-      ctx.shadowBlur = 20;
-      ctx.shadowColor = 'rgba(255, 255, 255, 0.4)';
 
       waves.forEach((w) => {
           ctx.beginPath();
-          ctx.strokeStyle = w.alpha === 1.0 ? gradient : `rgba(255, 255, 255, ${w.alpha})`;
-          ctx.lineWidth = w.width;
-          const currentAmp = (w.amp * volume * 1.2) + (volume > 0.05 ? 2 : 1); 
+          ctx.strokeStyle = w.color;
+          ctx.globalAlpha = w.alpha;
+          ctx.lineWidth = 2;
+          const currentAmp = (w.amp * volume * 2) + 2; 
 
           for (let x = 0; x < width; x++) {
               const y = centerY + Math.sin(x * w.freq + time * w.speed) * currentAmp;
@@ -208,235 +163,157 @@ export const InterviewSession: React.FC<InterviewSessionProps> = ({ candidate, o
           }
           ctx.stroke();
       });
-      
-      ctx.shadowBlur = 0; 
+      ctx.globalAlpha = 1;
     };
     draw();
   };
 
   useEffect(() => {
     isMountedRef.current = true;
-
     const initSession = async () => {
       try {
         const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (process as any).env?.API_KEY || "";
-        if (!apiKey) {
-            console.error("Missing API Key");
-            setStatus('error');
-            return;
-        }
-
         const ai = new GoogleGenAI({ apiKey });
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        
         const audioContext = new AudioContextClass({ sampleRate: 24000 }); 
         audioContextRef.current = audioContext;
-        if (audioContext.state === 'suspended') await audioContext.resume();
-
         const analyser = audioContext.createAnalyser();
         analyser.fftSize = 2048;
-        analyser.smoothingTimeConstant = 0.8;
         analyserRef.current = analyser;
-        const outputNode = audioContext.createGain();
-        outputNode.connect(analyser);
         analyser.connect(audioContext.destination);
         drawVisualizer();
 
         const inputAudioContext = new AudioContextClass();
         inputAudioContextRef.current = inputAudioContext;
-        if (inputAudioContext.state === 'suspended') await inputAudioContext.resume();
-        const currentSampleRate = inputAudioContext.sampleRate;
-
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            audio: {
-                channelCount: 1,
-                echoCancellation: true,
-                autoGainControl: true,
-                noiseSuppression: true,
-            }, 
-            video: true 
-        });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         streamRef.current = stream;
-
         const source = inputAudioContext.createMediaStreamSource(stream);
         const scriptProcessor = inputAudioContext.createScriptProcessor(4096, 1, 1);
         scriptProcessorRef.current = scriptProcessor; 
-        
         source.connect(scriptProcessor);
-        const muteNode = inputAudioContext.createGain();
-        muteNode.gain.value = 0;
-        scriptProcessor.connect(muteNode);
-        muteNode.connect(inputAudioContext.destination);
-
-        if (!isMountedRef.current) return;
+        scriptProcessor.connect(inputAudioContext.destination);
 
         const sessionPromise = ai.live.connect({
           model: 'gemini-2.5-flash-native-audio-preview-09-2025',
           callbacks: {
             onopen: () => {
-              if (!isMountedRef.current) {
-                  sessionPromise.then(s => s.close());
-                  return;
-              }
-
               setStatus('connected');
               isConnectedRef.current = true;
-              nextAudioStartTimeRef.current = 0;
-
               scriptProcessor.onaudioprocess = (e) => {
-                if (!isConnectedRef.current || !isMountedRef.current) return;
-                
+                if (!isConnectedRef.current) return;
                 const inputData = e.inputBuffer.getChannelData(0).slice();
-                
-                // Basic VAD
-                let sum = 0;
-                for (let i = 0; i < inputData.length; i++) sum += inputData[i] * inputData[i];
-                const rms = Math.sqrt(sum / inputData.length);
-                if (rms > 0.03) {
-                    setIsUserSpeaking(true);
-                } else {
-                    setIsUserSpeaking(false);
-                }
-                
-                const downsampledData = downsampleBuffer(inputData, currentSampleRate, 16000);
-                
-                if (downsampledData.length > 0) {
-                    const pcmBlob = createBlob(downsampledData, 16000);
-                    sessionPromise.then(session => {
-                        if (isConnectedRef.current && isMountedRef.current) {
-                            try {
-                                session.sendRealtimeInput({ media: pcmBlob });
-                            } catch (e) {}
-                        }
-                    });
-                }
+                const downsampledData = downsampleBuffer(inputData, inputAudioContext.sampleRate, 16000);
+                sessionPromise.then(s => s.sendRealtimeInput({ media: createBlob(downsampledData, 16000) }));
               };
             },
             onmessage: async (message: LiveServerMessage) => {
-              const hasContent = !!message.serverContent;
-              const isInterrupted = message.serverContent?.interrupted;
-
-              if (message.toolCall?.functionCalls) {
-                  const call = message.toolCall.functionCalls.find(f => f.name === 'endInterview');
-                  if (call) handleTermination("Completed");
-              }
-
-              if (isInterrupted) {
-                  sourcesRef.current.forEach(source => {
-                      try { source.stop(); } catch(e) {}
-                  });
-                  sourcesRef.current.clear();
-                  nextAudioStartTimeRef.current = 0;
-              }
-
+              if (message.toolCall?.functionCalls?.find(f => f.name === 'endInterview')) handleTermination("Completed");
               if (message.serverContent?.modelTurn?.parts?.[0]?.text) {
                 const text = message.serverContent.modelTurn.parts[0].text.trim();
-                if (text) {
-                    setTranscriptLines(prev => [...prev, { speaker: 'ai', text }]);
-                    fullTranscriptHistory.current.push(`AI: ${text}`);
-                }
+                setTranscriptLines(prev => [...prev, { speaker: 'ai', text }]);
+                fullTranscriptHistory.current.push(`AI: ${text}`);
               }
-
               if (message.serverContent?.inputTranscription?.text) {
                   const text = message.serverContent.inputTranscription.text;
                   setTranscriptLines(prev => [...prev, { speaker: 'user', text }]);
                   fullTranscriptHistory.current.push(`User: ${text}`);
               }
-
               if (message.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
                 const audioData = message.serverContent.modelTurn.parts[0].inlineData.data;
-                if (audioData && audioContextRef.current) {
-                  const ctx = audioContextRef.current;
-                  const buffer = await decodeAudioData(decode(audioData), ctx, 24000, 1);
-                  const source = ctx.createBufferSource();
-                  source.buffer = buffer;
-                  source.connect(ctx.destination);
-                  if (analyserRef.current) source.connect(analyserRef.current);
-                  const startTime = Math.max(ctx.currentTime, nextAudioStartTimeRef.current);
-                  source.start(startTime);
-                  nextAudioStartTimeRef.current = startTime + buffer.duration;
-                  sourcesRef.current.add(source);
-                  source.onended = () => sourcesRef.current.delete(source);
-                }
+                const buffer = await decodeAudioData(decode(audioData), audioContext, 24000, 1);
+                const source = audioContext.createBufferSource();
+                source.buffer = buffer;
+                source.connect(analyser);
+                const startTime = Math.max(audioContext.currentTime, nextAudioStartTimeRef.current);
+                source.start(startTime);
+                nextAudioStartTimeRef.current = startTime + buffer.duration;
+                sourcesRef.current.add(source);
               }
             },
             onerror: () => setStatus('error'),
           },
           config: {
             responseModalities: ["AUDIO" as any], 
-            speechConfig: {
-                voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } 
-            },
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
             tools: [{ functionDeclarations: [endInterviewTool] }],
             systemInstruction: {
               parts: [{
-                text: `You are Interna, a friendly AI interviewer from InternAdda. Candidate: ${candidate.name}, Role: ${candidate.field}.
-                Language: ${candidate.language}.
-                
-                GREETING & PROTOCOL:
-                1. **Greet Warmly**: Start by saying "Hi ${candidate.name}, I'm Interna! Relax, take a deep breath, and let's have a great conversation."
-                2. **General Phase**: Ask exactly 3 general ice-breaker questions (purpose of internship, motivation, handling challenges).
-                3. **Technical Phase**: Ask exactly 5 to 6 focused technical questions for the role of ${candidate.field}.
-                4. **Total Questions**: You must ask a total of 8 to 9 questions one by one.
-                5. **Termination**: After exactly 9 answers are received, say: "That was great! This concludes our interview. Processing your analysis now..." then call endInterview.`
+                text: `You are Interna, an AI interviewer. Greet ${candidate.name} warmly. Ask 3 general and 6 technical questions for ${candidate.field} role one by one. After 9 answers, call endInterview.`
               }]
             }
           }
         });
-        
         sessionRef.current = await sessionPromise;
-
-      } catch (e) {
-        setStatus('error');
-      }
+      } catch (e) { setStatus('error'); }
     };
-
     initSession();
-    return () => {
-      isMountedRef.current = false;
-      disconnect();
-    };
+    return () => { isMountedRef.current = false; disconnect(); };
   }, []);
 
   return (
-    <div className="grid grid-rows-[auto_1fr_auto] h-full w-full bg-slate-950 text-white relative overflow-hidden">
-      <div className="z-20 flex items-center justify-between px-6 py-4 bg-slate-900/50 border-b border-white/5">
-        <div className={`px-3 py-1 rounded-full border transition-colors ${status === 'connected' ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/20 border-amber-500/30 text-amber-400'}`}>
-          <span className="text-xs font-bold uppercase">{status}</span>
+    <div className="flex flex-col h-full w-full bg-[#020617] text-slate-100 overflow-hidden">
+      {/* ENHANCED UI HEADER */}
+      <div className="z-20 flex items-center justify-between px-8 py-5 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 shadow-2xl">
+        <div className="flex items-center gap-4">
+          <div className={`w-3 h-3 rounded-full shadow-[0_0_12px] ${status === 'connected' ? 'bg-emerald-400 shadow-emerald-500/50 animate-pulse' : 'bg-amber-400 shadow-amber-500/50'}`}></div>
+          <div className="flex flex-col">
+            <span className="text-[10px] uppercase tracking-[0.2em] font-black text-slate-500 leading-none mb-1">Live Interview</span>
+            <span className="text-sm font-bold text-slate-200">INTERNA AI SESSION</span>
+          </div>
         </div>
-        <div className="bg-slate-800 px-3 py-1 rounded-full text-slate-300 font-mono text-sm">
-          {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+        
+        <div className="flex items-center gap-3">
+          <div className="flex items-center px-4 py-2 bg-slate-950/50 rounded-xl border border-white/5 gap-3">
+            <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span className="font-mono text-lg font-bold text-indigo-400">
+              {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="relative flex items-center justify-center overflow-hidden">
-         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-900/30 via-slate-950 to-slate-950"></div>
-         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-80 z-0"></canvas>
-         <div className="relative z-10 flex flex-col items-center">
-             <svg width="220" height="220" viewBox="0 0 200 200" fill="none" className={`transition-all duration-500 ${status === 'connected' ? 'drop-shadow-[0_0_30px_rgba(255,255,255,0.15)]' : 'opacity-50 grayscale'}`}>
-                <rect x="20" y="20" width="160" height="160" rx="30" fill="#F1F5F9" />
-                <circle cx="65" cy="80" r="12" fill="#0F172A" />
-                <circle cx="135" cy="80" r="12" fill="#0F172A" />
-                <ellipse ref={mouthRef} cx="100" cy="135" rx="20" ry="2" fill="#0F172A" />
+      {/* VISUALIZER SECTION */}
+      <div className="relative flex-1 flex items-center justify-center">
+         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#1e1b4b_0%,_#020617_70%)] opacity-40"></div>
+         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-60"></canvas>
+         
+         <div className="relative z-10 scale-110">
+             <div className="absolute inset-0 bg-indigo-500/10 blur-[60px] rounded-full"></div>
+             <svg width="240" height="240" viewBox="0 0 200 200" fill="none" className="drop-shadow-2xl">
+                <rect x="20" y="20" width="160" height="160" rx="40" fill="#f8fafc" />
+                <circle cx="65" cy="85" r="10" fill="#0f172a" />
+                <circle cx="135" cy="85" r="10" fill="#0f172a" />
+                <ellipse ref={mouthRef} cx="100" cy="135" rx="25" ry="2" fill="#0f172a" />
              </svg>
          </div>
       </div>
 
-      <div className="z-20 bg-slate-900 border-t border-white/10 p-6 flex justify-center gap-6">
-        <button onClick={() => setIsMuted(!isMuted)} className={`p-4 rounded-full ${isMuted ? 'bg-rose-500/20 text-rose-500' : 'bg-white/10 text-white'}`}>
-           <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/></svg>
+      {/* ENHANCED CONTROLS */}
+      <div className="z-20 bg-slate-900/90 backdrop-blur-md border-t border-white/10 p-8 flex justify-center items-center gap-10">
+        <button onClick={() => setIsMuted(!isMuted)} className={`group p-5 rounded-3xl transition-all duration-300 ${isMuted ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
+           <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/></svg>
         </button>
-        <button onClick={handleManualEnd} className="p-4 rounded-full bg-rose-500 text-white"><svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6"><path d="M6 6h12v12H6z"/></svg></button>
-        <button onClick={() => setShowTranscript(!showTranscript)} className={`p-4 rounded-full ${showTranscript ? 'bg-indigo-500/20 text-indigo-400' : 'bg-white/10 text-white'}`}>
-           <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6"><path d="M21 15h2v2h-2v-2zM21 11h2v2h-2v-2zM21 7h2v2h-2v-2z"/></svg>
+        
+        <button onClick={() => handleTermination("User End")} className="p-6 rounded-[2rem] bg-rose-500 text-white shadow-[0_0_25px_rgba(244,63,94,0.4)] hover:scale-105 active:scale-95 transition-all">
+           <svg viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8"><path d="M6 6h12v12H6z"/></svg>
+        </button>
+
+        <button onClick={() => setShowTranscript(!showTranscript)} className={`p-5 rounded-3xl transition-all ${showTranscript ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
+           <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7"><path d="M21 15h2v2h-2v-2zM21 11h2v2h-2v-2zM21 7h2v2h-2v-2z"/></svg>
         </button>
       </div>
 
-      <div className={`absolute bottom-0 w-full bg-slate-900/95 border-t border-white/10 transition-all duration-500 ${showTranscript ? 'h-1/2' : 'h-0'}`}>
-         <div className="p-6 overflow-y-auto h-full space-y-4">
+      {/* TRANSCRIPT OVERLAY */}
+      <div className={`absolute bottom-0 w-full bg-slate-950/95 backdrop-blur-2xl border-t border-white/10 transition-all duration-700 ease-in-out z-30 ${showTranscript ? 'h-[60%]' : 'h-0'}`}>
+         <div className="p-8 overflow-y-auto h-full space-y-6 max-w-2xl mx-auto">
+             <div className="flex justify-center mb-4">
+                 <div className="w-12 h-1.5 bg-slate-800 rounded-full"></div>
+             </div>
              {transcriptLines.map((l, i) => (
-                 <div key={i} className={`flex gap-3 ${l.speaker === 'ai' ? 'flex-row' : 'flex-row-reverse'}`}>
-                     <div className={`p-3 rounded-2xl text-sm ${l.speaker === 'ai' ? 'bg-white/10' : 'bg-indigo-900/50 text-indigo-100'}`}>{l.text}</div>
+                 <div key={i} className={`flex ${l.speaker === 'ai' ? 'justify-start' : 'justify-end'}`}>
+                     <div className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed ${l.speaker === 'ai' ? 'bg-slate-800 text-slate-200 rounded-tl-none' : 'bg-indigo-600 text-white rounded-tr-none shadow-lg shadow-indigo-500/20'}`}>
+                        {l.text}
+                     </div>
                  </div>
              ))}
          </div>
