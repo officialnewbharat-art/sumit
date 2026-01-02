@@ -12,7 +12,6 @@ const App: React.FC = () => {
   const [result, setResult] = useState<any | null>(null);
 
   useEffect(() => {
-    // Prevent back navigation by pushing state
     const handlePopState = () => {
       if (step === AppStep.RESULT) {
         window.history.pushState(null, "", window.location.href);
@@ -22,26 +21,36 @@ const App: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [step]);
 
-  const handleInterviewComplete = async (transcript: string, terminationReason?: string) => {
+  const handleInterviewComplete = async (transcript: string, timeLeft: number, terminationReason?: string) => {
     setStep(AppStep.EVALUATING);
     window.history.pushState(null, "", window.location.href);
 
-    // SILENCE DETECTION: Check if the user actually spoke meaningful words
-    const userLines = transcript.split('\n').filter(line => line.startsWith('User:'));
-    const totalUserWords = userLines.join(' ').split(/\s+/).filter(word => word.length > 0).length;
+    // TIME-BASED SCORING LOGIC
+    // totalTime = 600s (10 mins)
+    const totalDuration = 600;
+    const timeUsedSeconds = totalDuration - timeLeft;
+    const timeUsedMinutes = Math.floor(timeUsedSeconds / 60);
+    
+    let baseScore = 0;
 
-    // If less than 5 words spoken, award 0 marks immediately
-    if (totalUserWords < 5) {
-      setResult({
-        rating: 0,
-        feedback: "It looks like your microphone wasn't picking up your voice. Please ensure you are in a quiet place with a working mic and try again!",
-        passed: false,
-        mistakes: ["Microphone connectivity check", "Active participation", "Clear verbal communication"],
-        terminationReason: terminationReason
-      });
-      setStep(AppStep.RESULT);
-      return;
+    // Scoring based on time spent (User effort)
+    if (timeUsedMinutes < 1) {
+      // 9-10 mins remaining: 1-5 marks
+      baseScore = Math.floor(Math.random() * 5) + 1;
+    } else if (timeUsedMinutes < 2) {
+      // 8-9 mins remaining: 10-15 marks
+      baseScore = Math.floor(Math.random() * 6) + 10;
+    } else if (timeUsedMinutes < 3) {
+      // 7-8 mins remaining: 20-25 marks
+      baseScore = Math.floor(Math.random() * 6) + 20;
+    } else {
+      // More time used: 30-50 marks
+      baseScore = Math.floor(Math.random() * 21) + 30;
     }
+
+    // Ensure final score is strictly 10-59 if any words were spoken
+    const userWords = transcript.split('\n').filter(l => l.startsWith('User:')).join(' ');
+    const finalRating = userWords.trim().length > 0 ? Math.min(Math.max(baseScore, 10), 59) : 0;
 
     try {
       const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (process as any).env?.GEMINI_API_KEY || "";
@@ -53,13 +62,11 @@ const App: React.FC = () => {
         Transcript: ${transcript}
         
         TASK:
-        1. Evaluate the technical and general answer quality (Quality Weight: 0.1 to 1.0).
-        2. Identify 3 soft-skill areas for improvement (e.g., Confidence, Clarity, Real-life examples).
-        3. Provide a warm, friendly, and motivating summary.
+        1. Identify 3 general soft-skill improvements (e.g., Confidence, Clarity, Real-life examples).
+        2. Provide a warm, motivating summary in a polite manner.
         
         Output ONLY JSON:
         {
-          "qualityWeight": number,
           "motivationalFeedback": "string",
           "mistakesToFix": ["string", "string", "string"]
         }
@@ -68,27 +75,20 @@ const App: React.FC = () => {
       const response = await model.generateContent(prompt);
       const data = JSON.parse(response.response.text());
 
-      // Weighted score generator (Range: 10 - 59). No one passes 60.
-      // Better speaking/answers result in a score closer to 59.
-      const base = 10;
-      const range = 49;
-      const dynamicScore = Math.floor(base + (range * (data.qualityWeight || 0.5)));
-
       setResult({
-        rating: dynamicScore,
-        feedback: data.motivationalFeedback || "You have a great spirit! With a bit more preparation, you'll be ready for the internship.",
+        rating: finalRating,
+        feedback: data.motivationalFeedback || "Aapka prayas prashansaniya hai! Thodi aur taiyari aapko manchahi internship dila sakti hai.",
         passed: false,
         mistakes: data.mistakesToFix || ["Build confidence", "Speak more clearly", "Use real-life examples"],
         terminationReason: terminationReason
       });
 
     } catch (error) {
-      console.error("Evaluation failed:", error);
       setResult({
-        rating: 22,
-        feedback: "Great start! Practice your technical basics and come back for another round soon.",
+        rating: finalRating > 0 ? finalRating : 12,
+        feedback: "Aapne acha perform kiya! Basics par thoda aur dhyan dein aur firse koshish karein.",
         passed: false,
-        mistakes: ["Speak clearly", "Explain with examples", "Maintain confidence"]
+        mistakes: ["Clarity in explanation", "Self-confidence", "Real-world examples"]
       });
     }
     setStep(AppStep.RESULT);
@@ -100,13 +100,15 @@ const App: React.FC = () => {
           {step === AppStep.FORM && <CandidateForm onSubmit={(info) => { setCandidate(info); setStep(AppStep.INSTRUCTIONS); }} />}
           {step === AppStep.INSTRUCTIONS && <Instructions onStart={() => setStep(AppStep.INTERVIEW)} />}
           {step === AppStep.INTERVIEW && candidate && (
-            <InterviewSession candidate={candidate} onComplete={handleInterviewComplete} />
+            <InterviewSession 
+              candidate={candidate} 
+              onComplete={(transcript, reason, timeLeftAtEnd) => handleInterviewComplete(transcript, timeLeftAtEnd || 0, reason)} 
+            />
           )}
           {step === AppStep.EVALUATING && (
              <div className="h-full w-full flex flex-col items-center justify-center bg-slate-900 text-white p-6 text-center">
                 <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-                <h2 className="text-2xl font-bold">Creating your personalized report...</h2>
-                <p className="text-indigo-200 mt-2">Almost ready!</p>
+                <h2 className="text-2xl font-bold">Taiyaar ho raha hai aapka Result...</h2>
              </div>
           )}
           {step === AppStep.RESULT && result && (
