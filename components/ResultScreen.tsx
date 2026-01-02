@@ -1,9 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { InterviewResult } from '../types';
 
 export const ResultScreen: React.FC<{result: InterviewResult; candidateName: string; onReset: () => void;}> = ({ result, candidateName, onReset }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'qa'>('overview');
-  // Only hide Q&A if it was a security breach
+  
+  // Logic for pop-ups and redirection based on score
+  useEffect(() => {
+    // Only trigger if it's not a security violation termination
+    const isViolation = result.terminationReason?.includes("Violation");
+    if (isViolation) return;
+
+    if (result.rating >= 60) {
+      alert("Congratulations! Please send your CV to support@internadda.com to proceed further.");
+    } else {
+      alert("Practice more and try more! You are being redirected to internadda.com to help you prepare better.");
+      setTimeout(() => {
+        window.location.href = "https://internadda.com";
+      }, 3000);
+    }
+  }, [result.rating, result.terminationReason]);
+
   const isViolation = result.terminationReason?.includes("Violation");
 
   return (
@@ -13,7 +29,8 @@ export const ResultScreen: React.FC<{result: InterviewResult; candidateName: str
              <h2 className="text-rose-600 font-bold text-2xl">DISQUALIFIED</h2>
           ) : (
              <div className="text-center">
-                <div className="text-6xl font-black mb-2">{result.rating}<span className="text-2xl text-slate-400">/10</span></div>
+                {/* Score updated to /100 */}
+                <div className="text-6xl font-black mb-2">{result.rating}<span className="text-2xl text-slate-400">/100</span></div>
                 <div className={`px-4 py-1 rounded-full text-sm font-bold uppercase ${result.passed ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
                     {result.passed ? 'Qualified' : 'Not Qualified'}
                 </div>
@@ -42,7 +59,8 @@ export const ResultScreen: React.FC<{result: InterviewResult; candidateName: str
                       <div key={i} className="bg-white p-6 rounded-2xl border shadow-sm">
                          <div className="flex justify-between mb-2">
                             <span className="font-bold text-indigo-600 text-sm">Question {i+1}</span>
-                            <span className="font-bold bg-slate-100 px-2 py-1 rounded text-sm">Score: {qa.rating}/10</span>
+                            {/* Individual question score out of 20 */}
+                            <span className="font-bold bg-slate-100 px-2 py-1 rounded text-sm">Score: {qa.rating}/20</span>
                          </div>
                          <p className="font-bold text-slate-900 mb-4">{qa.question}</p>
                          <div className="bg-slate-50 p-4 rounded-xl border">
