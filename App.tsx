@@ -25,26 +25,25 @@ const App: React.FC = () => {
     setStep(AppStep.EVALUATING);
     window.history.pushState(null, "", window.location.href);
 
-    // 1. TIME-BASED SCORING (Strictly following your rules)
     const timeRemainingMinutes = Math.floor(timeLeftAtEnd / 60);
     let timeScore = 0;
 
+    // Fixed Scoring Logic: Strictly based on time, NO zeros, MAX 59
     if (timeRemainingMinutes >= 10) {
-      // 10 minutes remain: 5 to 10 marks (Ensuring no zero)
+      // 10 mins remain: 5 to 10 marks
       timeScore = Math.floor(Math.random() * 6) + 5; 
     } else if (timeRemainingMinutes === 9) {
-      // 9 minutes remaining: 10 to 15 marks
+      // 9 mins remain: 10 to 15 marks
       timeScore = Math.floor(Math.random() * 6) + 10;
     } else if (timeRemainingMinutes === 8) {
-      // 8 minutes remaining: 20 to 25 marks
+      // 8 mins remain: 20 to 25 marks
       timeScore = Math.floor(Math.random() * 6) + 20;
     } else {
-      // Any other time spent: 30 to 59 marks (Never 60+)
+      // Significant engagement: 30 to 59 marks
       timeScore = Math.floor(Math.random() * 30) + 30;
     }
 
-    // Ensure strictly no zero and max 59
-    const finalRating = Math.max(timeScore, 5);
+    const finalRating = Math.min(timeScore, 59);
 
     try {
       const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (process as any).env.API_KEY || "";
@@ -52,18 +51,18 @@ const App: React.FC = () => {
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
       const prompt = `
-        Analyze this internship interview transcript: ${transcript}
-        The student scored ${finalRating}/100. They did NOT pass (Passing is 60).
+        Analyze this interview for ${candidate?.name}: ${transcript}
+        User Score: ${finalRating}/100.
         
         TASK:
-        1. Identify 3 areas for improvement.
-        2. Provide a VERY warm, polite, and highly motivating summary in Hinglish.
-        3. Explain that they are very close and should try again to clear the 60-mark threshold.
+        1. Identify 3 personalized growth areas (e.g., "Confidence missing when discussing technical stacks").
+        2. Create a summary starting with "Hi @${candidate?.name}...".
+        3. Make the feedback warm, highly motivating, and urge them to try again for 60+.
         
         Output ONLY JSON:
         {
           "motivationalFeedback": "string",
-          "mistakesToFix": ["string", "string", "string"]
+          "personalizedMistakes": ["string", "string", "string"]
         }
       `;
 
@@ -72,25 +71,25 @@ const App: React.FC = () => {
 
       setResult({
         rating: finalRating,
-        feedback: data.motivationalFeedback || "Aapne bahut acha prayas kiya! Aap success ke bahut kareeb hain.",
+        feedback: data.motivationalFeedback || `Hi @${candidate?.name}, aapne acha prayas kiya! Thodi aur practice se aap 60+ clear kar lenge.`,
         passed: false, 
-        mistakes: data.mistakesToFix || ["Communication", "Technical Knowledge", "Confidence"],
+        mistakes: data.personalizedMistakes || ["Confidence during questions", "Technical clarity", "Project depth"],
         terminationReason: terminationReason
       });
 
     } catch (error) {
       setResult({
         rating: finalRating,
-        feedback: "Aapne kafi mehnat ki hai! Bas thoda sa aur focus karein aur aap agli baar pakka select ho jayenge!",
+        feedback: `Hi @${candidate?.name}, aap success ke bahut kareeb hain! Bas thodi si aur mehnat aur internship aapki hogi.`,
         passed: false,
-        mistakes: ["Clarity", "Confidence", "Preparation"]
+        mistakes: ["Professional communication", "Conceptual depth", "Problem solving"]
       });
     }
     setStep(AppStep.RESULT);
   };
 
   return (
-    <div className="h-[100dvh] w-screen overflow-hidden bg-slate-50 flex flex-col relative">
+    <div className="h-[100dvh] w-screen overflow-hidden bg-slate-950 flex flex-col relative">
       <main className="flex-1 w-full relative overflow-hidden">
           {step === AppStep.FORM && <CandidateForm onSubmit={(info) => { setCandidate(info); setStep(AppStep.INSTRUCTIONS); }} />}
           {step === AppStep.INSTRUCTIONS && <Instructions onStart={() => setStep(AppStep.INTERVIEW)} />}
@@ -101,13 +100,10 @@ const App: React.FC = () => {
             />
           )}
           {step === AppStep.EVALUATING && (
-             <div className="h-full w-full flex flex-col items-center justify-center bg-[#0f172a] text-white p-6 text-center">
-                <div className="relative w-24 h-24 mb-8">
-                  <div className="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
-                  <div className="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-                <h2 className="text-2xl font-bold">Analyzing Your Interview...</h2>
-                <p className="text-slate-400 mt-3">Aapka report taiyaar kiya ja raha hai.</p>
+             <div className="h-full w-full flex flex-col items-center justify-center bg-slate-950 text-white p-6 text-center">
+                <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-6 shadow-[0_0_20px_rgba(99,102,241,0.5)]"></div>
+                <h2 className="text-2xl font-bold tracking-tight">Analyzing Performance...</h2>
+                <p className="text-slate-400 mt-2 font-medium">Aapka personalized report generate ho raha hai.</p>
              </div>
           )}
           {step === AppStep.RESULT && result && (
