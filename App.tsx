@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { AppStep, CandidateInfo, InterviewResult } from './types';
 import { CandidateForm } from './components/CandidateForm';
 import { Instructions } from './components/Instructions';
@@ -50,7 +50,8 @@ const App: React.FC = () => {
     }
     
     try {
-      const apiKey = (process.env as any).GEMINI_API_KEY || "";
+      // Corrected API key access for Vite environment
+      const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (process as any).env?.GEMINI_API_KEY || "";
       const genAI = new GoogleGenAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
@@ -64,20 +65,20 @@ const App: React.FC = () => {
         STRICT SCORING PROTOCOL:
         1. This is a 100-mark total interview consisting of 5 questions.
         2. Each question is worth exactly 20 marks.
-        3. For a CORRECT answer: Give full marks (20/20) for that question.
-        4. For a PARTIAL/POOR attempt: Give between 5% to 10% of the question marks (1 to 2 marks out of 20).
-        5. For NO answer or WRONG answer: Give 0 marks for that question.
-        6. Calculate the total "rating" out of 100 by summing these marks.
+        3. For a CORRECT answer: Give full marks (20/20).
+        4. For a PARTIAL/POOR attempt: Give between 5% to 10% (1 to 2 marks out of 20).
+        5. For NO answer: Give 0 marks.
+        6. Calculate the total "rating" out of 100.
         
-        Output ONLY pure JSON in this format:
+        Output ONLY pure JSON:
         {
-          "rating": number (Total marks out of 100),
-          "feedback": "string (Overall summary)",
+          "rating": number,
+          "feedback": "string",
           "questions": [
             {
               "question": "string",
               "candidateAnswerSummary": "string",
-              "rating": number (Marks for this question out of 20),
+              "rating": number (out of 20),
               "feedback": "string"
             }
           ]
@@ -93,8 +94,8 @@ const App: React.FC = () => {
       
       setResult({
         rating: data.rating || 0, 
-        feedback: data.feedback || "Evaluation completed based on available transcript.",
-        passed: (data.rating || 0) >= 60, // Passed only if score is 60 or above
+        feedback: data.feedback || "Evaluation completed.",
+        passed: (data.rating || 0) >= 60,
         questions: data.questions || [],
         terminationReason: terminationReason
       });
@@ -103,7 +104,7 @@ const App: React.FC = () => {
       console.error("Evaluation failed:", error);
       setResult({
         rating: 0,
-        feedback: "The AI was unable to generate a full report. Please contact support.",
+        feedback: "Evaluation failed. Please contact support.",
         passed: false,
         questions: []
       });
@@ -143,8 +144,7 @@ const App: React.FC = () => {
           {step === AppStep.EVALUATING && (
              <div className="h-full w-full flex flex-col items-center justify-center bg-slate-900 text-white">
                 <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-                <h2 className="text-2xl font-bold">Generating English Analysis...</h2>
-                <p className="text-indigo-200 mt-2 text-center">We are reviewing your answers now.</p>
+                <h2 className="text-2xl font-bold">Analyzing Your Performance...</h2>
              </div>
           )}
           {step === AppStep.RESULT && result && candidate && (
@@ -155,4 +155,4 @@ const App: React.FC = () => {
   );
 };
 
-export default App;s
+export default App;
