@@ -37,6 +37,7 @@ const App: React.FC = () => {
   const handleInterviewComplete = async (transcript: string, terminationReason?: string) => {
     setStep(AppStep.EVALUATING);
     
+    // Safety check for actual security/proctoring violations
     if (terminationReason && terminationReason.includes("Security Violation")) {
         setResult({
             rating: 0,
@@ -50,35 +51,35 @@ const App: React.FC = () => {
     }
     
     try {
-      // Corrected API key access for Vite environment
+      // Corrected environment variable access for Vite
       const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (process as any).env?.GEMINI_API_KEY || "";
       const genAI = new GoogleGenAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
       const prompt = `
-        Evaluate this job interview transcript professionally in English.
+        Evaluate this job interview transcript professionally.
         Candidate: ${candidate?.name}
         Role: ${candidate?.field}
         Transcript: 
         ${transcript}
         
-        STRICT SCORING PROTOCOL:
-        1. This is a 100-mark total interview consisting of 5 questions.
-        2. Each question is worth exactly 20 marks.
-        3. For a CORRECT answer: Give full marks (20/20).
-        4. For a PARTIAL/POOR attempt: Give between 5% to 10% (1 to 2 marks out of 20).
-        5. For NO answer: Give 0 marks.
-        6. Calculate the total "rating" out of 100.
+        STRICT SCORING PROTOCOL (100 Marks Total):
+        1. Base the evaluation on a 5-question interview structure. Each question is worth 20 marks.
+        2. NEVER give 0 marks if the candidate attempted to answer or spoke.
+        3. CORRECT ANSWER: Award full marks (18-20 marks).
+        4. PARTIAL/POOR ANSWER: Award an "Attempt Bonus" of 5% to 10% (1-2 marks out of 20).
+        5. If the interview was left early, evaluate based on the questions asked and give the "Attempt Bonus" for the final unfinished interaction.
+        6. Calculate the total 'rating' out of 100 by summing all question scores.
         
         Output ONLY pure JSON:
         {
-          "rating": number,
-          "feedback": "string",
+          "rating": number (Total out of 100),
+          "feedback": "string (Executive summary)",
           "questions": [
             {
               "question": "string",
               "candidateAnswerSummary": "string",
-              "rating": number (out of 20),
+              "rating": number (Marks out of 20),
               "feedback": "string"
             }
           ]
@@ -93,8 +94,8 @@ const App: React.FC = () => {
       const data = JSON.parse(response.response.text());
       
       setResult({
-        rating: data.rating || 0, 
-        feedback: data.feedback || "Evaluation completed.",
+        rating: data.rating || 5, // Minimum participation floor
+        feedback: data.feedback || "Evaluation completed based on transcript.",
         passed: (data.rating || 0) >= 60,
         questions: data.questions || [],
         terminationReason: terminationReason
@@ -103,8 +104,8 @@ const App: React.FC = () => {
     } catch (error) {
       console.error("Evaluation failed:", error);
       setResult({
-        rating: 0,
-        feedback: "Evaluation failed. Please contact support.",
+        rating: 5, // Default floor for system errors
+        feedback: "We were unable to generate a full report, but you have been awarded participation marks.",
         passed: false,
         questions: []
       });
@@ -144,7 +145,7 @@ const App: React.FC = () => {
           {step === AppStep.EVALUATING && (
              <div className="h-full w-full flex flex-col items-center justify-center bg-slate-900 text-white">
                 <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-                <h2 className="text-2xl font-bold">Analyzing Your Performance...</h2>
+                <h2 className="text-2xl font-bold">Analyzing Your Interview...</h2>
              </div>
           )}
           {step === AppStep.RESULT && result && candidate && (
