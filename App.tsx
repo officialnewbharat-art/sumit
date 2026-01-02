@@ -26,35 +26,36 @@ const App: React.FC = () => {
     setStep(AppStep.EVALUATING);
     window.history.pushState(null, "", window.location.href);
 
-    // 1. SILENCE DETECTION
+    // 1. INPUT ANALYSIS
     const userLines = transcript.split('\n').filter(line => line.startsWith('User:'));
     const totalUserWords = userLines.join(' ').split(/\s+/).filter(word => word.length > 0).length;
 
-    // 2. TIME-BASED SCORING CALCULATIONS
-    const totalDuration = 600; // 10 minutes
-    const timeUsedSeconds = totalDuration - timeLeftAtEnd;
-    const timeUsedMinutes = Math.floor(timeUsedSeconds / 60);
+    // 2. TIME-BASED SCORING (As per specific request)
+    const totalDuration = 600; // 10 minutes total
+    const timeRemainingMinutes = Math.floor(timeLeftAtEnd / 60);
     
     let timeScore = 0;
 
-    // Scoring based on user persistence/time spent
-    if (timeUsedMinutes <= 1) {
-      // 9-10 mins remaining: 10-15 marks
+    if (timeRemainingMinutes >= 10) {
+      // 10 minutes completely remain: 0 to 10 marks
+      timeScore = Math.floor(Math.random() * 11); 
+    } else if (timeRemainingMinutes === 9) {
+      // 9 minutes remaining: 10 to 15 marks
       timeScore = Math.floor(Math.random() * 6) + 10;
-    } else if (timeUsedMinutes <= 2) {
-      // 8-9 mins remaining: 20-25 marks
+    } else if (timeRemainingMinutes === 8) {
+      // 8 minutes remaining: 20 to 25 marks
       timeScore = Math.floor(Math.random() * 6) + 20;
     } else {
-      // Significant time spent: 30-50 marks
-      timeScore = Math.floor(Math.random() * 21) + 30;
+      // Any other time: Random score between 30 and 59
+      // This ensures they stay below the 60 passing mark
+      timeScore = Math.floor(Math.random() * 30) + 30;
     }
 
     // 3. FINAL RATING DETERMINATION
-    // Force 0 if user didn't speak meaningful words, otherwise cap at 59
-    const finalRating = totalUserWords >= 5 ? Math.min(Math.max(timeScore, 10), 59) : 0;
+    // Force 0 if user didn't speak meaningful words, otherwise cap strictly at 59
+    const finalRating = totalUserWords >= 3 ? Math.min(timeScore, 59) : 0;
 
     try {
-      // Accessing API Key safely via Vite/Process
       const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (process as any).env.API_KEY || "";
       const genAI = new GoogleGenAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -63,9 +64,14 @@ const App: React.FC = () => {
         Analyze this internship interview transcript:
         Transcript: ${transcript}
         
+        CONTEXT:
+        The student scored ${finalRating}/100. The passing mark is 60.
+        They did NOT pass. 
+        
         TASK:
-        1. Identify 3 general soft-skill areas for improvement (e.g., Clarity, Confidence, Real-life examples).
-        2. Provide a warm, polite, and motivating summary for the student.
+        1. Identify 3 specific areas for improvement.
+        2. Provide a VERY warm, polite, and highly motivating summary in Hinglish.
+        3. Tell them they are very close and just need a little more practice to clear it next time.
         
         Output ONLY JSON:
         {
@@ -79,9 +85,9 @@ const App: React.FC = () => {
 
       setResult({
         rating: finalRating,
-        feedback: data.motivationalFeedback || "Aapne acha prayas kiya! Thodi aur taiyari aapko internship dila sakti hai.",
-        passed: false, // Hardcoded false for 10-59 range
-        mistakes: data.mistakesToFix || ["Build confidence", "Speak more clearly", "Use real-life examples"],
+        feedback: data.motivationalFeedback || "Aapne bahut acha prayas kiya! Aap success ke bahut kareeb hain. Thodi aur practice se aap agli baar zaroor pass ho jayenge.",
+        passed: false, // Force false since max score is 59
+        mistakes: data.mistakesToFix || ["Technical depth", "Communication flow", "Confidence"],
         terminationReason: terminationReason
       });
 
@@ -89,9 +95,9 @@ const App: React.FC = () => {
       console.error("Evaluation failed:", error);
       setResult({
         rating: finalRating,
-        feedback: "Aapne kafi mehnat ki hai! Apne concepts ko thoda aur majboot karein aur firse koshish karein.",
+        feedback: "Aapne kafi mehnat ki hai! Aapka dedication kamaal ka hai. Bas thoda sa aur focus karein aur aap agli baar pakka select ho jayenge!",
         passed: false,
-        mistakes: ["Clarity", "Confidence", "Real-world examples"]
+        mistakes: ["Clarity", "Confidence", "Practical examples"]
       });
     }
     setStep(AppStep.RESULT);
@@ -109,10 +115,13 @@ const App: React.FC = () => {
             />
           )}
           {step === AppStep.EVALUATING && (
-             <div className="h-full w-full flex flex-col items-center justify-center bg-slate-900 text-white p-6 text-center">
-                <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-                <h2 className="text-2xl font-bold">Taiyaar ho raha hai aapka Report...</h2>
-                <p className="text-indigo-200 mt-2 italic">Aapke answers ko analyze kiya ja raha hai</p>
+             <div className="h-full w-full flex flex-col items-center justify-center bg-[#0f172a] text-white p-6 text-center">
+                <div className="relative w-24 h-24 mb-8">
+                  <div className="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
+                  <div className="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <h2 className="text-2xl font-bold tracking-tight">Analyzing Your Interview...</h2>
+                <p className="text-slate-400 mt-3 max-w-xs mx-auto">Hum aapke answers aur performance ko check kar rahe hain taaki aapko behtareen feedback de sakein.</p>
              </div>
           )}
           {step === AppStep.RESULT && result && (
