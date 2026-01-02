@@ -1,56 +1,71 @@
 import React, { useEffect } from 'react';
 
 export const ResultScreen: React.FC<{result: any; onReset: () => void;}> = ({ result, onReset }) => {
-  
   useEffect(() => {
-    // Lock the back button
     window.history.pushState(null, "", window.location.href);
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen w-full bg-slate-50 p-6">
-      <div className="max-w-2xl w-full bg-white rounded-3xl shadow-2xl p-10 text-center border-t-8 border-indigo-600">
-        <h2 className="text-3xl font-bold text-slate-900 mb-2">Growth Analysis Report</h2>
+    <div className="fixed inset-0 z-[100] bg-slate-50 overflow-y-auto overscroll-contain selection:bg-indigo-100">
+      <div className="min-h-full w-full flex flex-col items-center py-12 px-4 md:px-6">
         
-        <div className="my-8 bg-slate-50 py-8 rounded-3xl">
-          <div className="text-8xl font-black text-indigo-600">
-            {result.rating}
-            <span className="text-3xl text-slate-400">/100</span>
+        <div className="w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/60 overflow-hidden border border-slate-100 transform transition-all animate-in fade-in zoom-in duration-700">
+          
+          {/* Header Section */}
+          <div className="bg-slate-900 p-8 text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-rose-500"></div>
+            <h2 className="text-white text-xl font-bold tracking-tight">Interview Performance Report</h2>
           </div>
-          <p className="text-slate-500 mt-2 font-semibold uppercase tracking-widest">Initial Assessment</p>
-        </div>
 
-        <div className="bg-rose-50 border border-rose-100 rounded-2xl p-6 mb-8 text-left">
-          <h3 className="font-bold text-rose-800 mb-4 flex items-center gap-2">
-            💡 Roadmap to Improve
-          </h3>
-          <ul className="space-y-4">
-            {result.mistakes?.map((m: string, i: number) => (
-              <li key={i} className="flex gap-4 text-slate-700">
-                <span className="flex-shrink-0 w-6 h-6 bg-rose-200 text-rose-700 rounded-full flex items-center justify-center text-xs font-bold">{i+1}</span>
-                <span className="text-sm font-medium">{m}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+          <div className="p-8 md:p-12 text-center">
+            {/* Score Circle */}
+            <div className="inline-flex flex-col items-center justify-center w-48 h-48 rounded-full border-8 border-slate-50 shadow-inner mb-6 bg-white relative">
+                <div className={`absolute inset-0 rounded-full border-8 border-t-indigo-500 border-r-indigo-500 border-b-transparent border-l-transparent ${result.rating > 0 ? 'rotate-45' : 'opacity-0'}`}></div>
+                <span className="text-6xl font-black text-slate-900 leading-none">{result.rating}</span>
+                <span className="text-slate-400 font-bold text-sm mt-1 uppercase tracking-widest">Score / 100</span>
+            </div>
 
-        <div className="bg-indigo-50 p-6 rounded-2xl mb-8 border border-indigo-100">
-          <p className="text-indigo-900 text-sm leading-relaxed italic">
-            "{result.feedback}"
-          </p>
-        </div>
+            {/* Status Badge */}
+            <div className="mb-8">
+               <span className={`px-6 py-2 rounded-full text-sm font-black uppercase tracking-widest shadow-sm ${result.rating >= 60 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                  {result.rating >= 60 ? 'Qualified' : 'Not Qualified Yet'}
+               </span>
+               <p className="text-slate-500 text-sm mt-4 font-medium leading-relaxed max-w-sm mx-auto">
+                 {result.rating === 0 ? "It looks like we didn't catch your voice." : "A valid attempt! Use the feedback below to reach the 60% threshold."}
+               </p>
+            </div>
 
-        <div className="text-slate-500 text-sm mb-10">
-          <p className="font-bold text-slate-700 mb-2">Next Steps:</p>
-          Don't worry! Most successful candidates take a few tries. Focus on the mistakes above, prepare for 3-5 days, and come back stronger to claim your internship!
-        </div>
+            {/* Improvement Cards */}
+            <div className="grid gap-4 text-left mb-10">
+              <h3 className="text-slate-900 font-bold text-sm uppercase tracking-wider ml-2">Personalized Roadmap</h3>
+              {result.mistakes?.map((m: string, i: number) => (
+                <div key={i} className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:border-indigo-200 transition-colors group">
+                  <div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-indigo-600 font-bold text-sm group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                    {i + 1}
+                  </div>
+                  <span className="text-slate-700 font-semibold text-sm">{m}</span>
+                </div>
+              ))}
+            </div>
 
-        <button 
-          onClick={onReset} 
-          className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all transform active:scale-95 shadow-lg shadow-indigo-200"
-        >
-          I Will Prepare & Try Again
-        </button>
+            {/* AI Motivation */}
+            <div className="relative p-6 bg-indigo-50/50 rounded-3xl border border-indigo-100/50 mb-10">
+              <div className="absolute -top-3 left-8 px-3 bg-white border border-indigo-100 rounded-full text-[10px] font-bold text-indigo-500 uppercase">Expert Advice</div>
+              <p className="text-indigo-900 text-sm leading-relaxed italic font-medium">"{result.feedback}"</p>
+            </div>
+
+            <button 
+              onClick={onReset} 
+              className="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold text-lg shadow-xl shadow-slate-200 hover:bg-indigo-600 hover:shadow-indigo-200 active:scale-[0.98] transition-all duration-300"
+            >
+              Prepare & Try Again
+            </button>
+            
+            <p className="mt-6 text-slate-400 text-xs font-medium">
+              Next attempt available after 24 hours of preparation.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
