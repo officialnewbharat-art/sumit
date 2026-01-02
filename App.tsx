@@ -37,7 +37,6 @@ const App: React.FC = () => {
   const handleInterviewComplete = async (transcript: string, terminationReason?: string) => {
     setStep(AppStep.EVALUATING);
     
-    // Safety check for actual security/proctoring violations
     if (terminationReason && terminationReason.includes("Security Violation")) {
         setResult({
             rating: 0,
@@ -51,36 +50,35 @@ const App: React.FC = () => {
     }
     
     try {
-      // Corrected environment variable access for Vite
+      // Use the injected environment variable from vite.config.ts
       const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (process as any).env?.GEMINI_API_KEY || "";
       const genAI = new GoogleGenAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
       const prompt = `
-        Evaluate this job interview transcript professionally.
+        You are a Master Technical Recruiter and Mentor. Analyze the following transcript:
         Candidate: ${candidate?.name}
         Role: ${candidate?.field}
         Transcript: 
         ${transcript}
         
-        STRICT SCORING PROTOCOL (100 Marks Total):
-        1. Base the evaluation on a 5-question interview structure. Each question is worth 20 marks.
-        2. NEVER give 0 marks if the candidate attempted to answer or spoke.
-        3. CORRECT ANSWER: Award full marks (18-20 marks).
-        4. PARTIAL/POOR ANSWER: Award an "Attempt Bonus" of 5% to 10% (1-2 marks out of 20).
-        5. If the interview was left early, evaluate based on the questions asked and give the "Attempt Bonus" for the final unfinished interaction.
-        6. Calculate the total 'rating' out of 100 by summing all question scores.
+        STRICT EVALUATION & LEARNING RULES:
+        1. FOR EVERY TECHNICAL QUESTION ASKED: You MUST provide a detailed "candidateAnswerSummary" and "feedback".
+        2. TEACHING MOMENT: If the candidate gave a wrong or partial answer, the "feedback" section for that question MUST explain the error and provide the correct technical concept/answer so the user can learn for next time.
+        3. SCORING: Total 100 marks. Each of the 5 questions is worth 20 marks.
+        4. ATTEMPT BONUS: NEVER give 0 marks for an attempted answer. Award 1-2 marks (5-10%) even for poor or incomplete attempts.
+        5. OUTPUT: Return ONLY pure JSON.
         
-        Output ONLY pure JSON:
+        JSON STRUCTURE:
         {
-          "rating": number (Total out of 100),
-          "feedback": "string (Executive summary)",
+          "rating": number (Sum of question scores out of 100),
+          "feedback": "Overall summary of performance and learning path.",
           "questions": [
             {
-              "question": "string",
-              "candidateAnswerSummary": "string",
-              "rating": number (Marks out of 20),
-              "feedback": "string"
+              "question": "The technical question asked",
+              "candidateAnswerSummary": "Summary of user's response",
+              "rating": number (Score out of 20),
+              "feedback": "Deep technical analysis: What was wrong, what is the correct answer, and what to study."
             }
           ]
         }
@@ -93,19 +91,29 @@ const App: React.FC = () => {
 
       const data = JSON.parse(response.response.text());
       
+      // Fallback to ensure Q&A is never empty on the result screen
+      const processedQuestions = data.questions && data.questions.length > 0 
+        ? data.questions 
+        : [{
+            question: "Interview Summary",
+            candidateAnswerSummary: "Partial or interrupted attempt recorded.",
+            rating: data.rating || 5,
+            feedback: "Detailed analysis was unavailable for this transcript. Review the core concepts for " + (candidate?.field || "this role") + " and try again."
+          }];
+
       setResult({
-        rating: data.rating || 5, // Minimum participation floor
-        feedback: data.feedback || "Evaluation completed based on transcript.",
+        rating: data.rating || 5, 
+        feedback: data.feedback || "Evaluation completed. Please check the Q&A Analysis tab for detailed learning feedback.",
         passed: (data.rating || 0) >= 60,
-        questions: data.questions || [],
+        questions: processedQuestions,
         terminationReason: terminationReason
       });
 
     } catch (error) {
       console.error("Evaluation failed:", error);
       setResult({
-        rating: 5, // Default floor for system errors
-        feedback: "We were unable to generate a full report, but you have been awarded participation marks.",
+        rating: 5,
+        feedback: "The analysis engine encountered an error, but marks have been awarded for your effort.",
         passed: false,
         questions: []
       });
@@ -145,7 +153,8 @@ const App: React.FC = () => {
           {step === AppStep.EVALUATING && (
              <div className="h-full w-full flex flex-col items-center justify-center bg-slate-900 text-white">
                 <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-                <h2 className="text-2xl font-bold">Analyzing Your Interview...</h2>
+                <h2 className="text-2xl font-bold">Generating Detailed Learning Report...</h2>
+                <p className="text-indigo-200 mt-2 text-center">Identifying areas for improvement.</p>
              </div>
           )}
           {step === AppStep.RESULT && result && candidate && (
