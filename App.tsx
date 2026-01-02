@@ -37,7 +37,6 @@ const App: React.FC = () => {
   const handleInterviewComplete = async (transcript: string, terminationReason?: string) => {
     setStep(AppStep.EVALUATING);
     
-    // Only force 0 for actual security/proctoring violations
     if (terminationReason && terminationReason.includes("Security Violation")) {
         setResult({
             rating: 0,
@@ -51,7 +50,6 @@ const App: React.FC = () => {
     }
     
     try {
-      // FIX: Using the correct key from your vite.config.ts define block
       const apiKey = (process.env as any).GEMINI_API_KEY || "";
       const genAI = new GoogleGenAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -63,21 +61,23 @@ const App: React.FC = () => {
         Transcript: 
         ${transcript}
         
-        Task:
-        1. Identify every technical question the AI asked.
-        2. For each question, analyze the candidate's answer summary, provide a technical rating (1-10), and specific feedback.
-        3. Even if only one question was answered, provide a full analysis for it.
-        4. Give an overall score (1-10) and an executive summary. Do not give 0 if the user spoke; give honest credit.
+        STRICT SCORING PROTOCOL:
+        1. This is a 100-mark total interview consisting of 5 questions.
+        2. Each question is worth exactly 20 marks.
+        3. For a CORRECT answer: Give full marks (20/20) for that question.
+        4. For a PARTIAL/POOR attempt: Give between 5% to 10% of the question marks (1 to 2 marks out of 20).
+        5. For NO answer or WRONG answer: Give 0 marks for that question.
+        6. Calculate the total "rating" out of 100 by summing these marks.
         
         Output ONLY pure JSON in this format:
         {
-          "rating": number,
-          "feedback": "string",
+          "rating": number (Total marks out of 100),
+          "feedback": "string (Overall summary)",
           "questions": [
             {
               "question": "string",
               "candidateAnswerSummary": "string",
-              "rating": number,
+              "rating": number (Marks for this question out of 20),
               "feedback": "string"
             }
           ]
@@ -92,9 +92,9 @@ const App: React.FC = () => {
       const data = JSON.parse(response.response.text());
       
       setResult({
-        rating: data.rating || 1, 
+        rating: data.rating || 0, 
         feedback: data.feedback || "Evaluation completed based on available transcript.",
-        passed: (data.rating || 0) >= 6,
+        passed: (data.rating || 0) >= 60, // Passed only if score is 60 or above
         questions: data.questions || [],
         terminationReason: terminationReason
       });
@@ -102,8 +102,8 @@ const App: React.FC = () => {
     } catch (error) {
       console.error("Evaluation failed:", error);
       setResult({
-        rating: 1,
-        feedback: "The AI was unable to generate a full report. Marks awarded for participation.",
+        rating: 0,
+        feedback: "The AI was unable to generate a full report. Please contact support.",
         passed: false,
         questions: []
       });
@@ -155,4 +155,4 @@ const App: React.FC = () => {
   );
 };
 
-export default App;
+export default App;s
