@@ -7,8 +7,25 @@ import { InterviewSession } from './components/InterviewSession';
 import { ResultScreen } from './components/ResultScreen';
 
 const App: React.FC = () => {
-  const [step, setStep] = useState<AppStep>(AppStep.FORM);
-  const [candidate, setCandidate] = useState<CandidateInfo | null>(null);
+  // Use a lazy initializer for state to check URL parameters immediately on load
+  const [candidate, setCandidate] = useState<CandidateInfo | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get('name');
+    const field = params.get('domain') || params.get('field'); // Support both 'domain' and 'field' keys
+    
+    if (name && field) {
+      return {
+        name: decodeURIComponent(name),
+        field: decodeURIComponent(field),
+        jobDescription: params.get('jd') ? decodeURIComponent(params.get('jd')!) : `Technical interview for ${field} role.`,
+        language: params.get('lang') || 'English'
+      };
+    }
+    return null;
+  });
+
+  // Set initial step based on whether candidate info was found in URL
+  const [step, setStep] = useState<AppStep>(candidate ? AppStep.INTERVIEW : AppStep.FORM);
   const [result, setResult] = useState<any | null>(null);
 
   useEffect(() => {
@@ -28,18 +45,13 @@ const App: React.FC = () => {
     const timeRemainingMinutes = Math.floor(timeLeftAtEnd / 60);
     let timeScore = 0;
 
-    // Fixed Scoring Logic: Strictly based on time, NO zeros, MAX 59
     if (timeRemainingMinutes >= 10) {
-      // 10 mins remain: 5 to 10 marks
       timeScore = Math.floor(Math.random() * 6) + 5; 
     } else if (timeRemainingMinutes === 9) {
-      // 9 mins remain: 10 to 15 marks
       timeScore = Math.floor(Math.random() * 6) + 10;
     } else if (timeRemainingMinutes === 8) {
-      // 8 mins remain: 20 to 25 marks
       timeScore = Math.floor(Math.random() * 6) + 20;
     } else {
-      // Significant engagement: 30 to 59 marks
       timeScore = Math.floor(Math.random() * 30) + 30;
     }
 
