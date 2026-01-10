@@ -7,24 +7,24 @@ import { InterviewSession } from './components/InterviewSession';
 import { ResultScreen } from './components/ResultScreen';
 
 const App: React.FC = () => {
-  // Use a lazy initializer for state to check URL parameters immediately on load
+  // Extract data from URL immediately
   const [candidate, setCandidate] = useState<CandidateInfo | null>(() => {
     const params = new URLSearchParams(window.location.search);
-    const name = params.get('name');
-    const field = params.get('domain') || params.get('field'); // Support both 'domain' and 'field' keys
+    const nameParam = params.get('name');
+    const roleParam = params.get('role');
     
-    if (name && field) {
+    if (nameParam && roleParam) {
       return {
-        name: decodeURIComponent(name),
-        field: decodeURIComponent(field),
-        jobDescription: params.get('jd') ? decodeURIComponent(params.get('jd')!) : `Technical interview for ${field} role.`,
-        language: params.get('lang') || 'English'
+        name: decodeURIComponent(nameParam),
+        field: decodeURIComponent(roleParam),
+        jobDescription: `Professional interview for ${roleParam} position.`,
+        language: 'English'
       };
     }
     return null;
   });
 
-  // Set initial step based on whether candidate info was found in URL
+  // If parameters exist, start directly at INTERVIEW, otherwise start at FORM
   const [step, setStep] = useState<AppStep>(candidate ? AppStep.INTERVIEW : AppStep.FORM);
   const [result, setResult] = useState<any | null>(null);
 
@@ -42,23 +42,18 @@ const App: React.FC = () => {
     setStep(AppStep.EVALUATING);
     window.history.pushState(null, "", window.location.href);
 
+    // Scoring logic (matching your current logic)
     const timeRemainingMinutes = Math.floor(timeLeftAtEnd / 60);
     let timeScore = 0;
-
-    if (timeRemainingMinutes >= 10) {
-      timeScore = Math.floor(Math.random() * 6) + 5; 
-    } else if (timeRemainingMinutes === 9) {
-      timeScore = Math.floor(Math.random() * 6) + 10;
-    } else if (timeRemainingMinutes === 8) {
-      timeScore = Math.floor(Math.random() * 6) + 20;
-    } else {
-      timeScore = Math.floor(Math.random() * 30) + 30;
-    }
+    if (timeRemainingMinutes >= 10) timeScore = Math.floor(Math.random() * 6) + 5; 
+    else if (timeRemainingMinutes === 9) timeScore = Math.floor(Math.random() * 6) + 10;
+    else if (timeRemainingMinutes === 8) timeScore = Math.floor(Math.random() * 6) + 20;
+    else timeScore = Math.floor(Math.random() * 30) + 30;
 
     const finalRating = Math.min(timeScore, 59);
 
     try {
-      const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (process as any).env.API_KEY || "";
+      const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || "";
       const genAI = new GoogleGenAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
@@ -67,9 +62,8 @@ const App: React.FC = () => {
         User Score: ${finalRating}/100.
         
         TASK:
-        1. Identify 3 personalized growth areas (e.g., "Confidence missing when discussing technical stacks").
+        1. Identify 3 personalized growth areas.
         2. Create a summary starting with "Hi @${candidate?.name}...".
-        3. Make the feedback warm, highly motivating, and urge them to try again for 60+.
         
         Output ONLY JSON:
         {
@@ -83,18 +77,18 @@ const App: React.FC = () => {
 
       setResult({
         rating: finalRating,
-        feedback: data.motivationalFeedback || `Hi @${candidate?.name}, aapne acha prayas kiya! Thodi aur practice se aap 60+ clear kar lenge.`,
+        feedback: data.motivationalFeedback,
         passed: false, 
-        mistakes: data.personalizedMistakes || ["Confidence during questions", "Technical clarity", "Project depth"],
+        mistakes: data.personalizedMistakes,
         terminationReason: terminationReason
       });
 
     } catch (error) {
       setResult({
         rating: finalRating,
-        feedback: `Hi @${candidate?.name}, aap success ke bahut kareeb hain! Bas thodi si aur mehnat aur internship aapki hogi.`,
+        feedback: `Hi @${candidate?.name}, great effort! Focus on more practice to clear the 60+ mark.`,
         passed: false,
-        mistakes: ["Professional communication", "Conceptual depth", "Problem solving"]
+        mistakes: ["Technical clarity", "Communication flow", "Depth of answers"]
       });
     }
     setStep(AppStep.RESULT);
@@ -103,8 +97,12 @@ const App: React.FC = () => {
   return (
     <div className="h-[100dvh] w-screen overflow-hidden bg-slate-950 flex flex-col relative">
       <main className="flex-1 w-full relative overflow-hidden">
-          {step === AppStep.FORM && <CandidateForm onSubmit={(info) => { setCandidate(info); setStep(AppStep.INSTRUCTIONS); }} />}
-          {step === AppStep.INSTRUCTIONS && <Instructions onStart={() => setStep(AppStep.INTERVIEW)} />}
+          {step === AppStep.FORM && (
+            <CandidateForm onSubmit={(info) => { setCandidate(info); setStep(AppStep.INSTRUCTIONS); }} />
+          )}
+          {step === AppStep.INSTRUCTIONS && (
+            <Instructions onStart={() => setStep(AppStep.INTERVIEW)} />
+          )}
           {step === AppStep.INTERVIEW && candidate && (
             <InterviewSession 
               candidate={candidate} 
@@ -115,7 +113,7 @@ const App: React.FC = () => {
              <div className="h-full w-full flex flex-col items-center justify-center bg-slate-950 text-white p-6 text-center">
                 <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-6 shadow-[0_0_20px_rgba(99,102,241,0.5)]"></div>
                 <h2 className="text-2xl font-bold tracking-tight">Analyzing Performance...</h2>
-                <p className="text-slate-400 mt-2 font-medium">Aapka personalized report generate ho raha hai.</p>
+                <p className="text-slate-400 mt-2 font-medium">Your personalized report is being generated.</p>
              </div>
           )}
           {step === AppStep.RESULT && result && (
